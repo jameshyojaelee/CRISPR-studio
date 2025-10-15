@@ -155,7 +155,7 @@ fn benjamini_hochberg(pvalues: &[f64]) -> Vec<f64> {
 
     let n = pvalues.len();
     let mut adjusted = vec![1.0; n];
-    let mut cumulative = 1.0;
+    let mut cumulative: f64 = 1.0;
     for (i, (idx, pvalue)) in pairs.iter().enumerate().rev() {
         let rank = (i + 1) as f64;
         let scaled = (pvalue * n as f64) / rank;

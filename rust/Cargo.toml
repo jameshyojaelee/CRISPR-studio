@@ -14,7 +14,7 @@ simd = []
 rayon = ["dep:rayon"]
 
 [dependencies]
-pyo3 = { version = "0.21", features = ["extension-module", "abi3-py311"] }
+pyo3 = { version = "0.21", features = ["extension-module", "abi3-py310"] }
 numpy = "0.21"
 rayon = { version = "1.8", optional = true }
 indexmap = "2.2"
