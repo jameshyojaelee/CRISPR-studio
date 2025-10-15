@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>{{ summary_title }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2rem; }
+        h1, h2, h3 { color: #2c3e50; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }
+        th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
+        th { background: #f2f2f2; }
+        .warning { color: #c0392b; }
+    </style>
+</head>
+<body>
+    <h1>{{ summary_title }}</h1>
+    <p><strong>Screen type:</strong> {{ result.summary.screen_type.value }}</p>
+    <p><strong>Scoring method:</strong> {{ result.summary.scoring_method.value }}</p>
+    <p><strong>Total guides:</strong> {{ result.summary.total_guides }}</p>
+    <p><strong>Total genes:</strong> {{ result.summary.total_genes }}</p>
+    <p><strong>Significant genes:</strong> {{ result.summary.significant_genes }}</p>
+
+    <h2>Top Genes</h2>
+    <table>
+        <tr>
+            <th>Gene</th>
+            <th>Score</th>
+            <th>FDR</th>
+            <th>log2FC</th>
+        </tr>
+        {% for gene in top_genes %}
+        <tr>
+            <td>{{ gene.gene_symbol }}</td>
+            <td>{{ gene.score }}</td>
+            <td>{{ gene.fdr }}</td>
+            <td>{{ gene.log2_fold_change }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <h2>Pathway Highlights</h2>
+    <table>
+        <tr>
+            <th>Pathway</th>
+            <th>Source</th>
+            <th>FDR</th>
+            <th>Genes</th>
+        </tr>
+        {% for pathway in pathway_results %}
+        <tr>
+            <td>{{ pathway.name }}</td>
+            <td>{{ pathway.source }}</td>
+            <td>{{ pathway.fdr }}</td>
+            <td>{{ pathway.genes|join(', ') }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <h2>Quality Control</h2>
+    <ul>
+        {% for metric in qc_metrics %}
+        <li class="{{ 'warning' if not metric.ok else '' }}">{{ metric.name }}: {{ metric.value }} ({{ metric.severity.value }})</li>
+        {% endfor %}
+    </ul>
+
+    <h2>Narrative</h2>
+    {% for snippet in narratives %}
+    <h3>{{ snippet.title }}</h3>
+    <p>{{ snippet.body }}</p>
+    {% endfor %}
+</body>
+</html>

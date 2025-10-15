@@ -3,19 +3,21 @@
 from __future__ import annotations
 
 import json
-import logging
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, NamedTuple, Optional
 
 import pandas as pd
 
+from .analytics import log_event
 from .annotations import fetch_gene_annotations
+from .config import get_settings
 from .data_loader import load_counts, load_library
 from .enrichment import run_enrichr
 from .exceptions import DataContractError
+from .logging_config import get_logger
 from .mageck_adapter import MageckExecutionError, run_mageck
 from .models import AnalysisResult, ExperimentConfig, NarrativeSnippet
 from .narrative import NarrativeSettings, generate_narrative
@@ -24,7 +26,7 @@ from .qc import run_all_qc
 from .results import build_analysis_summary, merge_gene_results
 from .rra import run_rra
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class DataPaths(NamedTuple):
@@ -37,7 +39,7 @@ class DataPaths(NamedTuple):
 class PipelineSettings:
     use_mageck: bool = True
     enable_llm: bool = False
-    output_root: Path = Path("artifacts")
+    output_root: Path = field(default_factory=lambda: get_settings().artifacts_dir)
     enrichr_libraries: Optional[List[str]] = None
     narrative_model: Optional[str] = None
     narrative_temperature: float = 0.2
@@ -76,7 +78,15 @@ def run_analysis(
     start_time = time.time()
 
     output_dir = _ensure_output_dir(settings.output_root)
-    logger.info("Writing analysis artifacts to %s", output_dir)
+    logger.info("Writing analysis artifacts to {}", output_dir)
+    log_event(
+        "analysis_started",
+        {
+            "output_dir": str(output_dir),
+            "use_mageck": settings.use_mageck,
+            "enrichr_libraries": ",".join(settings.enrichr_libraries or []),
+        },
+    )
 
     counts = load_counts(paths.counts)
     library = load_library(paths.library)
@@ -177,5 +187,14 @@ def run_analysis(
     result_path.write_text(json.dumps(analysis_result.model_dump(mode="json"), indent=2))
     artifacts["analysis_result"] = str(result_path)
     analysis_result.artifacts = artifacts
+
+    log_event(
+        "analysis_completed",
+        {
+            "output_dir": str(output_dir),
+            "runtime_seconds": round(runtime, 2),
+            "significant_genes": analysis_result.summary.significant_genes,
+        },
+    )
 
     return analysis_result

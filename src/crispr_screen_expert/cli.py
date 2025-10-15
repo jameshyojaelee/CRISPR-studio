@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 from typing import Optional
 
@@ -12,8 +11,13 @@ import typer
 from .data_loader import load_counts, load_library, load_metadata
 from .models import ExperimentConfig, load_experiment_config
 from .pipeline import DataPaths, PipelineSettings, run_analysis
+from .logging_config import get_logger
+from .analytics import summarise_events
+from .config import get_settings
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
+logger = get_logger(__name__)
+settings = get_settings()
 
 
 def _resolve_path(path: Path) -> Path:
@@ -61,6 +65,7 @@ def validate_data(
         )
 
     typer.secho("Data validation succeeded.", fg=typer.colors.GREEN)
+    logger.info("Validated data inputs", counts=counts_path, library=library_path, metadata=metadata_path)
 
 
 @app.command("run-pipeline")
@@ -81,7 +86,7 @@ def run_pipeline(
     metadata_path = _resolve_path(metadata)
     config = _load_config(metadata_path)
 
-    output_dir = output_root or Path("artifacts")
+    output_dir = output_root or settings.artifacts_dir
     libraries = [item.strip() for item in enrichr.split(",")] if enrichr else None
 
     settings = PipelineSettings(
@@ -99,6 +104,7 @@ def run_pipeline(
     )
 
     typer.secho("Analysis completed.", fg=typer.colors.GREEN)
+    logger.info("Analysis completed", artifacts=result.artifacts)
     typer.echo(json.dumps(result.summary.model_dump(mode="json"), indent=2))
     typer.echo("Artifacts:")
     for key, value in result.artifacts.items():
@@ -118,11 +124,13 @@ def list_artifacts(
     root = root.expanduser().resolve()
     if not root.exists():
         typer.secho(f"No artifact directory found at {root}", fg=typer.colors.RED)
+        logger.warning("Artifact directory missing", root=root)
         raise typer.Exit(code=1)
 
     runs = sorted([path for path in root.iterdir() if path.is_dir()], reverse=True)
     if not runs:
         typer.secho("No analysis runs found.", fg=typer.colors.YELLOW)
+        logger.info("No artifacts to list", root=root)
         raise typer.Exit(code=0)
 
     displayed = 0
@@ -134,6 +142,13 @@ def list_artifacts(
         displayed += 1
         if displayed >= limit:
             break
+
+
+@app.command("analytics-summary")
+def analytics_summary() -> None:
+    """Summarise opt-in analytics events."""
+    summary = summarise_events()
+    typer.echo(json.dumps(summary, indent=2))
 
 
 def main() -> None:

@@ -1,0 +1,23 @@
+version: "3.9"
+
+services:
+  app:
+    build: .
+    ports:
+      - "8050:8050"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - ./artifacts:/app/artifacts
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    command: ["python", "app.py"]
+
+  worker:
+    build: .
+    command: ["python", "scripts/benchmark_pipeline.py"]
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      - app

@@ -1,0 +1,26 @@
+"""Centralised Dash component IDs."""
+
+STORE_CONFIG = "store-config"
+STORE_RESULTS = "store-results"
+STORE_JOB = "store-job"
+
+TABS_MAIN = "tabs-main"
+
+UPLOAD_COUNTS = "upload-counts"
+UPLOAD_LIBRARY = "upload-library"
+UPLOAD_METADATA = "upload-metadata"
+UPLOAD_STATUS = "upload-status"
+BUTTON_RUN_ANALYSIS = "button-run-analysis"
+BUTTON_DOWNLOAD_REPORT = "button-download-report"
+DOWNLOAD_REPORT = "download-report"
+INTERVAL_JOB = "interval-job"
+
+CONFIG_PANEL = "config-panel"
+GRAPH_VOLCANO = "graph-volcano"
+GRAPH_QC_REPLICATE = "graph-qc-replicate"
+GRAPH_QC_DETECTION = "graph-qc-detection"
+GRAPH_PATHWAY_BUBBLE = "graph-pathway-bubble"
+TABLE_GENES = "table-genes"
+SUMMARY_CARDS = "summary-cards"
+GENE_MODAL = "gene-modal"
+GENE_MODAL_BODY = "gene-modal-body"

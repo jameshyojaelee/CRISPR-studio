@@ -2,6 +2,8 @@
 
 CRISPR-studio is a next-generation analysis and visualization toolkit that turns pooled CRISPR screen data into interactive biological insights. The planning brief in `overview.md` drives the scope: automated QC, MAGeCK-compatible hit calling, pathway enrichment, curated gene context, and narrative-ready reporting for demos and admissions showcases.
 
+![CI](https://img.shields.io/badge/ci-pending-lightgrey?label=GitHub%20Actions)
+
 > **Status:** Repository scaffolding only. Use the prompts in `codex_prompts.md` to continue building the system module-by-module.
 
 ## Getting Started
@@ -30,6 +32,11 @@ Alternatively, use the provided `Makefile` targets once dependencies are install
 | `make build-report` | Build static reports (placeholder). |
 | `make clean` | Remove build artifacts and caches. |
 
+Manual equivalents:
+- `ruff check .` / `ruff check --fix .`
+- `mypy src`
+- `pytest --cov=crispr_screen_expert`
+
 ### Quickstart (Placeholder)
 1. Create or activate a Python 3.11 virtual environment.
 2. Install the package and extras using `make install`.
@@ -39,10 +46,31 @@ Alternatively, use the provided `Makefile` targets once dependencies are install
    - `crispr-studio list-artifacts`
 4. Follow the build prompts in `codex_prompts.md` to generate data contracts, pipeline components, and the Dash UI.
 
+### Environment Configuration
+- Create a `.env` file for secrets and overrides:
+  - `OPENAI_API_KEY` (optional) to enable narrative LLM summaries.
+  - `LOG_LEVEL` to adjust log verbosity (`DEBUG`, `INFO`, etc.).
+  - `CRISPR_STUDIO__ARTIFACTS_DIR`, `CRISPR_STUDIO__UPLOADS_DIR`, `CRISPR_STUDIO__LOGS_DIR` to customise storage paths (pydantic nested setting syntax).
+- Application logs are written to `logs/crispr_studio.log` via Loguru; rotate weekly with four-week retention.
+
 #### Demo Dataset
 - Sample inputs live in `sample_data/` (`demo_counts.csv`, `demo_library.csv`, `demo_metadata.json`) and adhere to the contract in `docs/data_contract.md`.
 - Regenerate or customize the synthetic dataset with `python scripts/generate_demo_dataset.py --output-dir sample_data --seed 42`.
 - The demo models a dropout screen with two control and two treatment replicates, highlighting DNA repair genes that deplete under drug selection.
+
+### Docker Usage
+- Build the image locally:
+  ```bash
+  docker build -t crispr-studio .
+  ```
+- Run the Dash app and mount artifact directories:
+  ```bash
+  docker-compose up app
+  ```
+- Execute the benchmark worker:
+  ```bash
+  docker-compose run --rm worker
+  ```
 
 ## Documentation Roadmap
 
