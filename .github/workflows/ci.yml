@@ -76,8 +76,15 @@ jobs:
         run: maturin develop --manifest-path rust/Cargo.toml --release
       - name: Build C++ extension
         run: |
-          python -m scikit_build_core.build --wheel -S cpp -b cpp/build/ci -o cpp/dist
-          .venv/bin/pip install cpp/dist/*.whl
+          PYTHON_BIN=$(which python)
+          PYBIND11_DIR=$($PYTHON_BIN - <<'PY'
+import pybind11
+print(pybind11.get_cmake_dir())
+PY
+)
+          cmake -S cpp -B cpp/build/ci -DPython3_EXECUTABLE=$PYTHON_BIN -Dpybind11_DIR=$PYBIND11_DIR
+          cmake --build cpp/build/ci
+          cp cpp/build/ci/crispr_native*.so src/
       - name: Pytest with native extensions
         run: .venv/bin/pytest --maxfail=1 --disable-warnings
 
