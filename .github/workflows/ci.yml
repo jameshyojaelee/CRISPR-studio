@@ -77,11 +77,7 @@ jobs:
       - name: Build C++ extension
         run: |
           PYTHON_BIN="$PWD/.venv/bin/python"
-          PYBIND11_DIR=$($PYTHON_BIN - <<'PY'
-import pybind11
-print(pybind11.get_cmake_dir())
-PY
-)
+          PYBIND11_DIR=$($PYTHON_BIN -c "import pybind11; print(pybind11.get_cmake_dir())")
           cmake -S cpp -B cpp/build/ci -DPython3_EXECUTABLE=$PYTHON_BIN -Dpybind11_DIR=$PYBIND11_DIR
           cmake --build cpp/build/ci
           cp cpp/build/ci/crispr_native*.so src/
