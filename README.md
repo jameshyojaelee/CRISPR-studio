@@ -33,7 +33,11 @@ Alternatively, use the provided `Makefile` targets once dependencies are install
 ### Quickstart (Placeholder)
 1. Create or activate a Python 3.11 virtual environment.
 2. Install the package and extras using `make install`.
-3. Follow the build prompts in `codex_prompts.md` to generate data contracts, pipeline components, and the Dash UI.
+3. Use the Typer CLI via `crispr-studio`:
+   - `crispr-studio validate-data sample_data/demo_counts.csv sample_data/demo_library.csv sample_data/demo_metadata.json`
+   - `crispr-studio run-pipeline sample_data/demo_counts.csv sample_data/demo_library.csv sample_data/demo_metadata.json --enrichr-libraries Reactome_2022`
+   - `crispr-studio list-artifacts`
+4. Follow the build prompts in `codex_prompts.md` to generate data contracts, pipeline components, and the Dash UI.
 
 #### Demo Dataset
 - Sample inputs live in `sample_data/` (`demo_counts.csv`, `demo_library.csv`, `demo_metadata.json`) and adhere to the contract in `docs/data_contract.md`.

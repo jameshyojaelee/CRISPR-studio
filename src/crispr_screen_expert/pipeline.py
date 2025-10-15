@@ -13,17 +13,13 @@ from typing import Dict, List, NamedTuple, Optional
 import pandas as pd
 
 from .annotations import fetch_gene_annotations
-from .data_loader import load_counts, load_library, load_metadata, match_counts_to_library
+from .data_loader import load_counts, load_library
 from .enrichment import run_enrichr
 from .exceptions import DataContractError
-from .mageck_adapter import run_mageck
+from .mageck_adapter import MageckExecutionError, run_mageck
 from .models import AnalysisResult, ExperimentConfig, NarrativeSnippet
 from .narrative import NarrativeSettings, generate_narrative
-from .normalization import (
-    compute_gene_stats,
-    compute_log2_fold_change,
-    normalize_counts_cpm,
-)
+from .normalization import compute_log2_fold_change, normalize_counts_cpm
 from .qc import run_all_qc
 from .results import build_analysis_summary, merge_gene_results
 from .rra import run_rra
@@ -56,6 +52,20 @@ def _ensure_output_dir(root: Path) -> Path:
     return output_dir
 
 
+def _prepare_mageck_input(
+    counts: pd.DataFrame,
+    library: pd.DataFrame,
+    output_dir: Path,
+) -> Path:
+    """Create a MAGeCK-compatible count matrix with sgRNA and Gene columns."""
+    df = counts.reset_index().rename(columns={"guide_id": "sgRNA"})
+    gene_map = library.set_index("guide_id")["gene_symbol"]
+    df.insert(1, "Gene", df["sgRNA"].map(gene_map).fillna("UNKNOWN"))
+    mageck_input_path = output_dir / "mageck_input.tsv"
+    df.to_csv(mageck_input_path, sep="\t", index=False)
+    return mageck_input_path
+
+
 def run_analysis(
     config: ExperimentConfig,
     paths: DataPaths,
@@ -81,18 +91,25 @@ def run_analysis(
 
     counts_cpm = normalize_counts_cpm(counts)
     log2fc = compute_log2_fold_change(counts_cpm, metadata)
-    gene_stats = compute_gene_stats(log2fc, library)
-
     gene_df: Optional[pd.DataFrame] = None
     artifacts: Dict[str, str] = {}
     warnings: List[str] = []
 
     if settings.use_mageck:
-        mageck_df = run_mageck(paths.counts, metadata, output_dir=output_dir)
+        mageck_input_path = _prepare_mageck_input(counts, library, output_dir)
+        artifacts["mageck_input"] = str(mageck_input_path)
+        mageck_failed = False
+        try:
+            mageck_df = run_mageck(mageck_input_path, metadata, output_dir=output_dir)
+        except MageckExecutionError as exc:
+            logger.warning("MAGeCK execution failed: %s", exc)
+            warnings.append(f"MAGeCK execution failed ({exc}); falling back to RRA.")
+            mageck_failed = True
+            mageck_df = None
         if mageck_df is not None:
             gene_df = mageck_df
-        else:
-            warnings.append("MAGeCK not available; using RRA fallback.")
+        elif not mageck_failed:
+            warnings.append("MAGeCK not available or failed; using RRA fallback.")
 
     if gene_df is None:
         gene_df = run_rra(log2fc, library)
@@ -122,6 +139,9 @@ def run_analysis(
     if settings.cache_annotations:
         genes = gene_df["gene"].tolist() if "gene" in gene_df.columns else gene_df["gene_symbol"].tolist()
         annotation_data = fetch_gene_annotations(genes)
+        annotations_path = output_dir / "gene_annotations.json"
+        annotations_path.write_text(json.dumps(annotation_data, indent=2))
+        artifacts["gene_annotations"] = str(annotations_path)
 
     runtime = time.time() - start_time
     summary = build_analysis_summary(

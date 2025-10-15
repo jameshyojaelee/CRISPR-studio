@@ -8,6 +8,11 @@ __pycache__/
 venv/
 env/
 
+#md files
+codex_prompts.md
+prompt02_plan.md
+overview.md
+
 # Distribution / packaging
 build/
 dist/
@@ -28,6 +33,3 @@ artifacts/
 # OS
 .DS_Store
 Thumbs.db
-
-codex_prompts.md
-prompt02_plan.md

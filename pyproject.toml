@@ -53,5 +53,8 @@ llm = [
   "openai"
 ]
 
+[project.scripts]
+crispr-studio = "crispr_screen_expert.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
