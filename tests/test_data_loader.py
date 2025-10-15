@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import pandas as pd
 import pytest
 
 from crispr_screen_expert.data_loader import load_counts, load_library, load_metadata

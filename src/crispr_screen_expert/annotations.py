@@ -9,8 +9,6 @@ from typing import Dict, Iterable, List, Optional
 
 import requests
 
-from .models import PathwayResult
-
 logger = logging.getLogger(__name__)
 
 DEFAULT_CACHE_PATH = Path(".cache/gene_cache.json")

@@ -8,7 +8,7 @@ from typing import Optional
 
 import typer
 
-from .data_loader import load_counts, load_library, load_metadata
+from .data_loader import load_counts, load_library
 from .models import ExperimentConfig, load_experiment_config
 from .pipeline import DataPaths, PipelineSettings, run_analysis
 from .logging_config import get_logger
@@ -17,7 +17,7 @@ from .config import get_settings
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
 logger = get_logger(__name__)
-settings = get_settings()
+APP_SETTINGS = get_settings()
 
 
 def _resolve_path(path: Path) -> Path:
@@ -88,10 +88,10 @@ def run_pipeline(
     metadata_path = _resolve_path(metadata)
     config = _load_config(metadata_path)
 
-    output_dir = output_root or settings.artifacts_dir
+    output_dir = output_root or APP_SETTINGS.artifacts_dir
     libraries = [item.strip() for item in enrichr.split(",")] if enrichr else None
 
-    settings = PipelineSettings(
+    pipeline_settings = PipelineSettings(
         use_mageck=use_mageck,
         enable_llm=enable_llm,
         output_root=output_dir,
@@ -104,7 +104,7 @@ def run_pipeline(
     result = run_analysis(
         config=config,
         paths=DataPaths(counts=counts_path, library=library_path, metadata=metadata_path),
-        settings=settings,
+        settings=pipeline_settings,
     )
 
     typer.secho("Analysis completed.", fg=typer.colors.GREEN)

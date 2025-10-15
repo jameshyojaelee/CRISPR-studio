@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import base64
 import json
-import os
 import threading
 import uuid
 from pathlib import Path
@@ -12,7 +11,7 @@ from typing import Any, Dict
 
 import dash
 import dash_bootstrap_components as dbc
-from dash import Dash, Input, Output, State, dcc, html
+from dash import Dash, Input, Output, State, html
 import pandas as pd
 import plotly.graph_objects as go
 
@@ -267,8 +266,8 @@ def register_callbacks(app: Dash) -> None:
         row = table_data[idx]
         annotations = result_store.get("annotations", {})
         analysis = AnalysisResult.model_validate(result_store.get("result"))
-        gene_info = next((g for g in analysis.gene_results if g.gene_symbol == gene_symbol), None)
         gene_symbol = row.get("gene")
+        gene_info = next((g for g in analysis.gene_results if g.gene_symbol == gene_symbol), None)
         annotation = annotations.get(gene_symbol, {})
         body = html.Div(
             [

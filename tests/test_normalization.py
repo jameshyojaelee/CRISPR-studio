@@ -3,7 +3,6 @@ from __future__ import annotations
 import numpy as np
 
 from crispr_screen_expert.normalization import (
-    aggregate_replicates,
     compute_gene_stats,
     compute_log2_fold_change,
     normalize_counts_cpm,
