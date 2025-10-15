@@ -1,6 +1,7 @@
 # CRISPR-studio
 
-CRISPR-studio is a next-generation analysis and visualization toolkit that turns pooled CRISPR screen data into interactive biological insights. The planning brief in `overview.md` drives the scope: automated QC, MAGeCK-compatible hit calling, pathway enrichment, curated gene context, and narrative-ready reporting for demos and admissions showcases.
+- CRISPR-studio is a next-generation analysis and visualization toolkit that turns pooled CRISPR screen data into interactive biological insights.
+- Scope: automated QC, MAGeCK-compatible hit calling, pathway enrichment, curated gene context, and narrative-ready reporting for demos and admissions showcases.
 
 ![CI](https://img.shields.io/badge/ci-pending-lightgrey?label=GitHub%20Actions)
 
@@ -136,5 +137,3 @@ Environment toggles:
 | `docs/developer_guide.md` | Architecture and contribution guidance. | Planned |
 | `docs/roadmap.md` | Milestones and success metrics. | Planned |
 | `docs/security_privacy.md` | Data handling checklist. | Planned |
-
-Refer to `overview.md` for the full product vision, demo script, and go-to-market context guiding subsequent development prompts.
