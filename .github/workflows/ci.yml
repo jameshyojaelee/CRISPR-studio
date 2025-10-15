@@ -76,7 +76,7 @@ jobs:
         run: maturin develop --manifest-path rust/Cargo.toml --release
       - name: Build C++ extension
         run: |
-          PYTHON_BIN=$(which python)
+          PYTHON_BIN="$PWD/.venv/bin/python"
           PYBIND11_DIR=$($PYTHON_BIN - <<'PY'
 import pybind11
 print(pybind11.get_cmake_dir())
