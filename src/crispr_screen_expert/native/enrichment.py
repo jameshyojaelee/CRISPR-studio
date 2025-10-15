@@ -52,12 +52,15 @@ def _benjamini_hochberg(pvalues: np.ndarray) -> np.ndarray:
 
 
 @lru_cache(maxsize=4)
-def _load_builtin_libraries() -> Mapping[str, Mapping[str, List[str]]]:
+def _load_builtin_libraries() -> Dict[str, Dict[str, List[str]]]:
     if not _BUILTIN_LIBRARY_PATH.exists():
         logger.debug("No builtin native enrichment library found at %s", _BUILTIN_LIBRARY_PATH)
         return {}
     data = json.loads(_BUILTIN_LIBRARY_PATH.read_text())
-    return {name: {set_name: list(genes) for set_name, genes in library.items()} for name, library in data.items()}
+    return {
+        str(name): {str(set_name): [str(gene) for gene in genes] for set_name, genes in library.items()}
+        for name, library in data.items()
+    }
 
 
 def load_gene_sets(library_names: Sequence[str]) -> Dict[str, Dict[str, List[str]]]:

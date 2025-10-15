@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Callable, Dict, List, Optional, cast
 
 import numpy as np
 import pandas as pd
@@ -12,15 +12,19 @@ from ..logging_config import get_logger
 
 logger = get_logger(__name__)
 
+_rust_run_rra: Optional[Callable[..., List[Dict[str, object]]]] = None
+_backend_info_rust: Optional[Callable[[], Dict[str, object]]] = None
+_IMPORT_ERROR: Optional[Exception] = None
+
 try:
-    from crispr_native_rust import run_rra_native as _rust_run_rra, _backend_info as _backend_info_rust
+    from crispr_native_rust import _backend_info as _backend_info_impl, run_rra_native as _rust_run_rra_impl
 
     _NATIVE_AVAILABLE = True
-    _IMPORT_ERROR: Optional[Exception] = None
+    _backend_info_rust = cast(Callable[[], Dict[str, object]], _backend_info_impl)
+    _rust_run_rra = cast(Callable[..., List[Dict[str, object]]], _rust_run_rra_impl)
 except ImportError as exc:  # pragma: no cover - executed when native module missing
     _NATIVE_AVAILABLE = False
     _IMPORT_ERROR = exc
-    _backend_info_rust = None  # type: ignore[assignment]
 
 
 def is_available() -> bool:
@@ -46,7 +50,7 @@ def run_rra_native(
     higher_is_better: bool = True,
 ) -> pd.DataFrame:
     """Execute the Rust RRA backend and return a pandas DataFrame."""
-    if not _NATIVE_AVAILABLE:
+    if not _NATIVE_AVAILABLE or _rust_run_rra is None:
         raise ImportError(
             "crispr_native_rust is not available. Reinstall with native extras and build the Rust module.",
         ) from _IMPORT_ERROR
@@ -69,20 +73,18 @@ def run_rra_native(
         raise DataContractError("No overlapping guides between log2 fold-change values and library.")
 
     guide_ids = merged.index.to_numpy(copy=False)
-    weights = merged["weight"] if "weight" in merged.columns else None
-    weight_array = (
-        np.asarray(weights, dtype=np.float64)
-        if weights is not None
-        else np.ones(len(merged), dtype=np.float64)
-    )
+    if "weight" in merged.columns:
+        weight_array = merged["weight"].to_numpy(dtype=np.float64, copy=False)
+    else:
+        weight_array = np.ones(len(merged), dtype=np.float64)
 
     if guide_pvalues is not None:
         guide_pvalues = guide_pvalues.reindex(guide_ids)
-        p_value_array: Optional[np.ndarray] = np.asarray(guide_pvalues, dtype=np.float64)
+        p_value_array: Optional[np.ndarray] = guide_pvalues.to_numpy(dtype=np.float64, copy=False)
     else:
         p_value_array = None
 
-    log_values = np.asarray(merged["log2fc"], dtype=np.float64)
+    log_values = merged["log2fc"].to_numpy(dtype=np.float64, copy=False)
     gene_symbols = merged["gene_symbol"].astype(str).tolist()
 
     logger.debug(

@@ -12,18 +12,19 @@ import math
 from typing import Optional
 
 import numpy as np
+from numpy.typing import NDArray
 import pandas as pd
 from scipy.stats import beta
 
 from .exceptions import DataContractError
 
 
-def _benjamini_hochberg(pvalues: np.ndarray) -> np.ndarray:
+def _benjamini_hochberg(pvalues: NDArray[np.float64]) -> NDArray[np.float64]:
     """Perform Benjamini-Hochberg FDR correction."""
     n = pvalues.size
     order = np.argsort(pvalues)
-    ranked = pvalues[order]
-    adjusted = np.empty(n, dtype=float)
+    ranked: NDArray[np.float64] = pvalues[order]
+    adjusted = np.empty_like(ranked)
     cumulative = 1.0
     for i in range(n - 1, -1, -1):
         rank = i + 1
@@ -31,7 +32,7 @@ def _benjamini_hochberg(pvalues: np.ndarray) -> np.ndarray:
         cumulative = min(cumulative, value)
         adjusted[i] = cumulative
     adjusted = np.clip(adjusted, 0.0, 1.0)
-    result = np.empty(n, dtype=float)
+    result = np.empty_like(adjusted)
     result[order] = adjusted
     return result
 
@@ -134,7 +135,7 @@ def run_rra(
     result = pd.DataFrame.from_records(records)
     result = result.sort_values("p_value", kind="mergesort")
 
-    fdr = _benjamini_hochberg(result["p_value"].to_numpy())
+    fdr = _benjamini_hochberg(result["p_value"].to_numpy(dtype=float))
     result["fdr"] = fdr
     result["rank"] = np.arange(1, result.shape[0] + 1, dtype=int)
 

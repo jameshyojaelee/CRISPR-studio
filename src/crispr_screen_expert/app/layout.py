@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import dash_bootstrap_components as dbc
 from dash import dcc, html
-from dash import dash_table
+from dash.development.base_component import Component
+from dash_table import DataTable
 
 from . import ids
 
 
-def build_layout() -> html.Div:
+def build_layout() -> Component:
     return dbc.Container(
         [
             html.H2("CRISPR-studio"),
@@ -34,7 +35,7 @@ def build_layout() -> html.Div:
     )
 
 
-def _upload_tab() -> html.Div:
+def _upload_tab() -> Component:
     return dbc.Row(
         [
             dbc.Col(
@@ -53,12 +54,12 @@ def _upload_tab() -> html.Div:
     )
 
 
-def _results_tab() -> html.Div:
+def _results_tab() -> Component:
     return html.Div(
         [
             html.Div(id=ids.SUMMARY_CARDS, className="mb-4"),
             dcc.Graph(id=ids.GRAPH_VOLCANO),
-            dash_table.DataTable(
+            DataTable(
                 id=ids.TABLE_GENES,
                 columns=[
                     {"name": "Gene", "id": "gene"},
@@ -85,7 +86,7 @@ def _results_tab() -> html.Div:
     )
 
 
-def _qc_tab() -> html.Div:
+def _qc_tab() -> Component:
     return html.Div(
         [
             dcc.Graph(id=ids.GRAPH_QC_REPLICATE),
@@ -94,11 +95,11 @@ def _qc_tab() -> html.Div:
     )
 
 
-def _pathways_tab() -> html.Div:
+def _pathways_tab() -> Component:
     return html.Div([dcc.Graph(id=ids.GRAPH_PATHWAY_BUBBLE)])
 
 
-def _reports_tab() -> html.Div:
+def _reports_tab() -> Component:
     return html.Div(
         [
             dbc.Button("Download HTML Report", id=ids.BUTTON_DOWNLOAD_REPORT, color="secondary"),

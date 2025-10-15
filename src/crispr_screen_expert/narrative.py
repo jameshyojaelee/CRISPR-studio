@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import List, Optional, Sequence
+from typing import Any, Callable, List, Optional, Sequence
 
 from .models import (
     AnalysisResult,
@@ -15,10 +15,13 @@ from .models import (
     QCSeverity,
 )
 
+OpenAIClientFactory: Optional[Callable[[], Any]] = None
 try:
-    from openai import OpenAI  # type: ignore
+    from openai import OpenAI as _OpenAI
+
+    OpenAIClientFactory = _OpenAI
 except ImportError:  # pragma: no cover - optional dependency
-    OpenAI = None  # type: ignore
+    OpenAIClientFactory = None
 
 
 @dataclass
@@ -80,14 +83,17 @@ def _pathway_summary(pathways: Sequence[PathwayResult], limit: int = 5) -> str:
 
 
 def _has_openai_credentials(settings: NarrativeSettings) -> bool:
-    return bool(settings.enable_llm and OpenAI is not None and os.getenv("OPENAI_API_KEY"))
+    return bool(settings.enable_llm and OpenAIClientFactory is not None and os.getenv("OPENAI_API_KEY"))
 
 
 def _generate_llm_summary(result: AnalysisResult, settings: NarrativeSettings) -> Optional[NarrativeSnippet]:
     if not _has_openai_credentials(settings):
         return None
 
-    client = OpenAI()
+    if OpenAIClientFactory is None:  # pragma: no cover - safety check
+        return None
+
+    client = OpenAIClientFactory()
     top_hits_text = _format_hit_list(result)
     pathway_text = _pathway_summary(result.pathway_results)
     qc_text = _qc_overview(result.qc_metrics)

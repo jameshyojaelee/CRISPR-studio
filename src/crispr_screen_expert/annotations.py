@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional, cast
 
 import requests
 
@@ -17,7 +17,7 @@ DEFAULT_CACHE_PATH = Path(".cache/gene_cache.json")
 def _load_cache(cache_path: Path) -> Dict[str, Dict[str, object]]:
     if cache_path.exists():
         try:
-            return json.loads(cache_path.read_text())
+            return cast(Dict[str, Dict[str, object]], json.loads(cache_path.read_text()))
         except json.JSONDecodeError:
             logger.warning("Gene cache at %s is corrupted; ignoring.", cache_path)
     return {}
@@ -69,14 +69,15 @@ def fetch_gene_annotations(
         sess = session or requests.Session()
         try:
             query = " OR ".join(remaining)
+            params: Dict[str, str | int] = {
+                "q": f"symbol:({query})",
+                "species": species,
+                "fields": ",".join(fields),
+                "size": len(remaining),
+            }
             response = sess.get(
                 "https://mygene.info/v3/query",
-                params={
-                    "q": f"symbol:({query})",
-                    "species": species,
-                    "fields": ",".join(fields),
-                    "size": len(remaining),
-                },
+                params=params,
                 timeout=10,
             )
             response.raise_for_status()
@@ -88,10 +89,10 @@ def fetch_gene_annotations(
 
         for hit in hits:
             normalized = _normalize_gene_entry(hit)
-            symbol = normalized.get("symbol")
-            if symbol:
-                cache[symbol] = normalized
-                annotations[symbol] = normalized
+            symbol_obj = normalized.get("symbol")
+            if isinstance(symbol_obj, str):
+                cache[symbol_obj] = normalized
+                annotations[symbol_obj] = normalized
 
         _save_cache(cache_path, cache)
 

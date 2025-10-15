@@ -5,8 +5,12 @@ from __future__ import annotations
 import os
 import sys
 from functools import lru_cache
+from typing import TYPE_CHECKING
 
 from loguru import logger
+
+if TYPE_CHECKING:  # pragma: no cover - typing aid
+    from loguru import Logger
 
 from .config import get_settings
 
@@ -21,6 +25,6 @@ def _configure_logger() -> None:
 
 
 @lru_cache(1)
-def get_logger(name: str = "crispr_studio"):
+def get_logger(name: str = "crispr_studio") -> "Logger":
     _configure_logger()
     return logger.bind(context=name)

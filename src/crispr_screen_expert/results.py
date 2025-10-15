@@ -28,13 +28,13 @@ def _maybe_float(value: object) -> Optional[float]:
         if isinstance(value, (float, np.floating)) and np.isnan(value):
             return None
         return float(value)
-    try:
-        numeric = float(value)
-    except (TypeError, ValueError):
-        return None
-    if np.isnan(numeric):
-        return None
-    return numeric
+    if isinstance(value, str):
+        try:
+            numeric = float(value)
+        except ValueError:
+            return None
+        return None if np.isnan(numeric) else numeric
+    return None
 
 
 def build_analysis_summary(
@@ -121,7 +121,7 @@ def prepare_volcano_payload(
     score_column: str = "score",
     significance_column: str = "fdr",
     significance_threshold: float = 0.1,
-) -> Dict[str, List[Optional[float]]]:
+) -> Dict[str, List[object]]:
     """Build a payload for Plotly volcano plot rendering."""
     if lfc_column not in gene_df.columns:
         if "mean_log2fc" in gene_df.columns:
@@ -136,7 +136,7 @@ def prepare_volcano_payload(
         # Fall back to inverse FDR if score absent.
         y_values = -np.log10(gene_df[significance_column].replace({0: np.nan}))
 
-    payload = {
+    payload: Dict[str, List[object]] = {
         "x": gene_df[lfc_column].tolist(),
         "y": y_values.tolist(),
         "labels": gene_df["gene"].tolist() if "gene" in gene_df.columns else gene_df["gene_symbol"].tolist(),
@@ -149,12 +149,15 @@ def prepare_volcano_payload(
     return payload
 
 
+ConditionStat = Dict[str, float | None | str]
+
+
 def compute_condition_statistics(
     counts: pd.DataFrame,
     metadata: ExperimentConfig,
-) -> List[Dict[str, Optional[float]]]:
+) -> List[ConditionStat]:
     """Summarize per-condition library size statistics."""
-    stats: List[Dict[str, Optional[float]]] = []
+    stats: List[ConditionStat] = []
     for condition in metadata.control_conditions + metadata.treatment_conditions:
         columns = [s.file_column for s in metadata.samples if s.condition == condition]
         if not columns:
