@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=67", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "crispr_screen_expert"
+version = "0.1.0"
+description = "CRISPR-studio core package for pooled CRISPR screen analysis and reporting."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT License" }
+authors = [
+  { name = "CRISPR-studio Team" }
+]
+classifiers = [
+  "Programming Language :: Python :: 3.11",
+  "License :: OSI Approved :: MIT License",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Bio-Informatics"
+]
+dependencies = [
+  "pandas",
+  "numpy",
+  "scipy",
+  "scikit-learn",
+  "plotly",
+  "dash",
+  "dash-bootstrap-components",
+  "gseapy",
+  "mygene",
+  "requests",
+  "typer[all]",
+  "jinja2",
+  "weasyprint",
+  "pydantic>=2",
+  "pydantic-settings",
+  "loguru"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "pytest-cov",
+  "ruff",
+  "mypy",
+  "types-requests"
+]
+docs = [
+  "mkdocs",
+  "mkdocs-material"
+]
+llm = [
+  "openai"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

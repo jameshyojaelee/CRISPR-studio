@@ -1,0 +1,30 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Logs and artifacts
+logs/
+artifacts/
+.cache/
+
+# Dash app artifacts
+.dash-debug.json
+
+# Jupyter / VSCode
+.ipynb_checkpoints/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db

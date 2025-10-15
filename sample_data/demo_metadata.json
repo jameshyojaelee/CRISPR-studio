@@ -1,0 +1,42 @@
+{
+  "experiment_name": "Demo Dropout Screen",
+  "library_name": "Synthetic DNA Repair Panel",
+  "screen_type": "dropout",
+  "fdr_threshold": 0.1,
+  "samples": [
+    {
+      "sample_id": "CTRL_A",
+      "column": "CTRL_A",
+      "condition": "control",
+      "replicate": "A",
+      "role": "control"
+    },
+    {
+      "sample_id": "CTRL_B",
+      "column": "CTRL_B",
+      "condition": "control",
+      "replicate": "B",
+      "role": "control"
+    },
+    {
+      "sample_id": "TREAT_A",
+      "column": "TREAT_A",
+      "condition": "treatment",
+      "replicate": "A",
+      "role": "treatment"
+    },
+    {
+      "sample_id": "TREAT_B",
+      "column": "TREAT_B",
+      "condition": "treatment",
+      "replicate": "B",
+      "role": "treatment"
+    }
+  ],
+  "analysis": {
+    "scoring_method": "mageck",
+    "enable_pathway": true,
+    "enable_llm": false,
+    "min_count_threshold": 10
+  }
+}
