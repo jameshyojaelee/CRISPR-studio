@@ -27,7 +27,7 @@
 
 ## Pricing Thought Starters
 - **Freemium**: free tier for datasets <5k guides; paid per-analysis for larger screens.
-- **Subscription**: lab license ($299/mo) with unlimited analyses, email support.
+- **Subscription**: lab license ($299/mo) with unlimited analyses, email support. Include native acceleration, benchmarking, and profiled builds as part of the Professional tier; keep pure-Python pipelines in the free tier to minimise support load.
 - **On-Prem**: annual license + support SLA for biotech partners.
 
 ## Timeline

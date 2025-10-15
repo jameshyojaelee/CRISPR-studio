@@ -2,12 +2,16 @@ version: "3.9"
 
 services:
   app:
-    build: .
+    build:
+      context: .
+      args:
+        BUILD_NATIVE: ${BUILD_NATIVE:-0}
     ports:
       - "8050:8050"
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - ENABLE_PROFILING=${ENABLE_PROFILING:-0}
     volumes:
       - ./artifacts:/app/artifacts
       - ./uploads:/app/uploads
@@ -15,8 +19,11 @@ services:
     command: ["python", "app.py"]
 
   worker:
-    build: .
-    command: ["python", "scripts/benchmark_pipeline.py"]
+    build:
+      context: .
+      args:
+        BUILD_NATIVE: ${BUILD_NATIVE:-0}
+    command: ["python", "scripts/benchmark_pipeline.py", "--use-native-rra", "--use-native-enrichment", "--dataset-size", "medium", "--repeat", "1"]
     environment:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     depends_on:

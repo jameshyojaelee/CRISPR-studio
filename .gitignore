@@ -9,8 +9,7 @@ venv/
 env/
 
 #md files
-codex_prompts.md
-prompt02_plan.md
+codex_prompts_multilang.md
 overview.md
 
 # Distribution / packaging
@@ -25,6 +24,17 @@ artifacts/
 
 # Dash app artifacts
 .dash-debug.json
+
+# Native build artefacts
+cpp/build/
+cpp/**/CMakeCache.txt
+cpp/**/cmake_install.cmake
+cpp/**/CMakeFiles/
+cpp/**/Makefile
+rust/target/
+*.so
+*.dylib
+*.pyd
 
 # Jupyter / VSCode
 .ipynb_checkpoints/

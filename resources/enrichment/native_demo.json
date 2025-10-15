@@ -1,0 +1,8 @@
+{
+  "native_demo": {
+    "DNA_REPAIR": ["BRCA2", "ATM", "RAD51", "CHEK1"],
+    "CELL_CYCLE": ["CDK1", "CCNE1", "BRCA2", "CHEK1"],
+    "IMMUNE_SIGNALING": ["STAT1", "IRF1", "JAK1", "CD274"],
+    "APOPTOSIS": ["BAX", "BCL2", "CASP3", "TP53"]
+  }
+}

@@ -10,7 +10,11 @@
    pip install --upgrade pip
    make install
    ```
-3. Optionally, populate a `.env` file with settings:
+3. (Optional) install native build prerequisites if you plan to use the accelerated modules:
+   - **Linux**: `sudo apt-get install -y build-essential cmake ninja-build rustc cargo`
+   - **macOS**: `brew install cmake ninja rustup` then run `rustup-init`
+   - **Windows**: Install Visual Studio Build Tools (MSVC), CMake, Ninja, and Rust via `rustup`
+4. Optionally, populate a `.env` file with settings:
    ```bash
    echo "OPENAI_API_KEY=your-key" >> .env
    echo "LOG_LEVEL=INFO" >> .env
@@ -28,10 +32,33 @@ Run `crispr-studio --help` to view commands. Common workflows:
   ```bash
   crispr-studio run-pipeline sample_data/demo_counts.csv sample_data/demo_library.csv sample_data/demo_metadata.json --enrichr-libraries Reactome_2022
   ```
+- Run with native accelerators (requires the native modules to be built):
+  ```bash
+  crispr-studio run-pipeline sample_data/demo_counts.csv sample_data/demo_library.csv sample_data/demo_metadata.json --use-native-rra --use-native-enrichment --enrichr-libraries native_demo
+  ```
 - List prior analyses and available artifacts:
   ```bash
   crispr-studio list-artifacts
   ```
+
+## Native Acceleration
+
+Native modules speed up robust rank aggregation and enrichment. Build them once per environment:
+
+```bash
+pip install .[native]
+maturin develop --manifest-path rust/Cargo.toml --release
+python -m scikit_build_core.build --wheel -S cpp -b cpp/build/user -o cpp/dist
+pip install cpp/dist/*.whl
+```
+
+Set `CRISPR_STUDIO_USE_NATIVE_RRA=1` and/or `CRISPR_STUDIO_USE_NATIVE_ENRICHMENT=1` to force-enable native paths globally. Use `CRISPR_STUDIO_FORCE_PYTHON=1` to temporarily disable all native extensions. When a backend is missing or raises an error the pipeline logs a warning and automatically falls back to the Python implementation.
+
+| Dataset profile | Recommended backend |
+| --- | --- |
+| Exploratory (<5k guides) | Pure Python |
+| Production (~20k guides) | Native RRA (optionally native enrichment) |
+| Genome-scale (≥100k guides) | Native RRA + native enrichment |
 
 ## Dash Application
 
@@ -62,9 +89,17 @@ Run `crispr-studio --help` to view commands. Common workflows:
 
 - **Data Contract Violations**: `crispr-studio validate-data` highlights missing columns or mismatched guides. Ensure `guide_id` column exists and metadata sample IDs align with counts columns.
 - **MAGeCK Missing**: Install from Bitbucket (`pip install /tmp/mageck-bitbucket`). The pipeline automatically falls back to RRA when MAGeCK fails or is unavailable.
+- **Native build failures**: Confirm platform prerequisites (compilers, CMake, Ninja, Rust) are installed and run the build commands from a clean virtual environment. Review `cpp/build/*/CMakeOutput.log` or `rust/target` logs for details.
+- **Native RRA/enrichment unavailable**: If the native module fails to import, set `CRISPR_STUDIO_FORCE_PYTHON=1` to continue with the Python fallback and rebuild the extension later.
 - **WeasyPrint Not Installed**: HTML export remains available; install system dependencies and `pip install weasyprint` for PDF support.
 - **Large Datasets**: Background jobs are queued (ThreadPoolExecutor). Monitor `logs/crispr_studio.log` for timings and warnings.
 
 ## Configure Analytics Opt-In
 
 Analytics logging is disabled by default. Set `CRISPR_STUDIO__ENABLE_ANALYTICS=true` in `.env` to capture anonymised events (analysis started/completed, QC warnings) written under `analytics/`.
+
+## FAQ
+
+- **MAGeCK works but native RRA fails to build** – rebuild the Rust extension (`maturin develop --manifest-path rust/Cargo.toml --release`) and ensure the toolchain requirements are installed. Until then, rely on the Python fallback (`CRISPR_STUDIO_FORCE_PYTHON=1`).
+- **Can I disable native enrichment only?** – yes, either unset `CRISPR_STUDIO_USE_NATIVE_ENRICHMENT` or pass `--use-native-enrichment/--no-use-native-enrichment` through the CLI when running pipelines.
+- **Where are native gene sets stored?** – the demo ships with `resources/enrichment/native_demo.json`. Provide your own JSON mapping of `{ "library": { "set_name": [genes...] } }` to extend it.

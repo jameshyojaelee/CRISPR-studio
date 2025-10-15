@@ -19,6 +19,10 @@
 - For regulated environments, deploy the application within the organisation’s secure network.
 - Provide a self-hosted Enrichr cache or run GSEA offline if external API calls are disallowed.
 - Audit dependencies via `pip list --outdated` and monitor CVE feeds for core libraries (pandas, Dash, Plotly).
+- Native extensions depend on permissively licensed libraries (`pybind11` BSD-3, `statrs` MIT, `indexmap` Apache-2.0/MIT dual licence, OpenMP runtimes). Verify compatibility before redistribution.
+- Run `cargo audit` for Rust crates and `pip-licenses --format=plain-vertical` to capture licence notices. Store reports with release artefacts.
+- When publishing wheels, generate SHA256 sums and sign artefacts (e.g., `gpg --detach-sign`). Consumers should verify hashes prior to installation.
+- Release builds should be reproducible: tag the repo, capture `rustc --version`, `cmake --version`, and container image digests.
 
 ## Reviewer Checklist
 - [ ] HTTPS enforced / reverse proxy configured

@@ -11,6 +11,8 @@ from typing import Dict, List, NamedTuple, Optional
 
 import pandas as pd
 
+import os
+
 from .analytics import log_event
 from .annotations import fetch_gene_annotations
 from .config import get_settings
@@ -22,6 +24,8 @@ from .mageck_adapter import MageckExecutionError, run_mageck
 from .models import AnalysisResult, ExperimentConfig, NarrativeSnippet
 from .narrative import NarrativeSettings, generate_narrative
 from .normalization import compute_log2_fold_change, normalize_counts_cpm
+from .native import enrichment as native_enrichment
+from .native import rra as native_rra
 from .qc import run_all_qc
 from .results import build_analysis_summary, merge_gene_results
 from .rra import run_rra
@@ -45,6 +49,36 @@ class PipelineSettings:
     narrative_temperature: float = 0.2
     narrative_max_tokens: int = 400
     cache_annotations: bool = True
+    use_native_rra: bool = False
+    use_native_enrichment: bool = False
+
+
+def _run_gene_scoring(
+    log2fc: pd.Series,
+    library: pd.DataFrame,
+    *,
+    use_native_rra: bool,
+    warnings: List[str],
+) -> pd.DataFrame:
+    """Execute gene-level scoring using native RRA when requested."""
+    if use_native_rra:
+        if native_rra.is_available():
+            try:
+                native_df = native_rra.run_rra_native(log2fc, library)
+                logger.info("Using native RRA backend.")
+                return native_df
+            except DataContractError:
+                raise
+            except Exception as exc:  # pragma: no cover - defensive path
+                message = f"Native RRA failed ({exc}); falling back to Python implementation."
+                warnings.append(message)
+                logger.warning(message)
+        else:
+            message = "Native RRA requested but backend not available; falling back to Python implementation."
+            warnings.append(message)
+            logger.warning(message)
+
+    return run_rra(log2fc, library)
 
 
 def _ensure_output_dir(root: Path) -> Path:
@@ -68,6 +102,36 @@ def _prepare_mageck_input(
     return mageck_input_path
 
 
+def _env_flag(name: str) -> Optional[bool]:
+    value = os.getenv(name)
+    if value is None:
+        return None
+    value = value.strip().lower()
+    if value in {"1", "true", "yes", "on"}:
+        return True
+    if value in {"0", "false", "no", "off"}:
+        return False
+    return None
+
+
+def _apply_env_overrides(settings: PipelineSettings) -> PipelineSettings:
+    force_python = _env_flag("CRISPR_STUDIO_FORCE_PYTHON")
+    if force_python:
+        settings.use_native_rra = False
+        settings.use_native_enrichment = False
+        return settings
+
+    native_rra = _env_flag("CRISPR_STUDIO_USE_NATIVE_RRA")
+    if native_rra is not None:
+        settings.use_native_rra = native_rra
+
+    native_enrichment = _env_flag("CRISPR_STUDIO_USE_NATIVE_ENRICHMENT")
+    if native_enrichment is not None:
+        settings.use_native_enrichment = native_enrichment
+
+    return settings
+
+
 def run_analysis(
     config: ExperimentConfig,
     paths: DataPaths,
@@ -75,6 +139,7 @@ def run_analysis(
 ) -> AnalysisResult:
     """Execute the full CRISPR-studio analysis pipeline."""
     settings = settings or PipelineSettings()
+    settings = _apply_env_overrides(settings)
     start_time = time.time()
 
     output_dir = _ensure_output_dir(settings.output_root)
@@ -84,6 +149,8 @@ def run_analysis(
         {
             "output_dir": str(output_dir),
             "use_mageck": settings.use_mageck,
+            "use_native_rra": settings.use_native_rra,
+            "use_native_enrichment": settings.use_native_enrichment,
             "enrichr_libraries": ",".join(settings.enrichr_libraries or []),
         },
     )
@@ -122,7 +189,12 @@ def run_analysis(
             warnings.append("MAGeCK not available or failed; using RRA fallback.")
 
     if gene_df is None:
-        gene_df = run_rra(log2fc, library)
+        gene_df = _run_gene_scoring(
+            log2fc,
+            library,
+            use_native_rra=settings.use_native_rra,
+            warnings=warnings,
+        )
 
     gene_df_path = output_dir / "gene_results.csv"
     gene_df.to_csv(gene_df_path, index=False)
@@ -138,12 +210,39 @@ def run_analysis(
 
     enrichment_results = []
     if settings.enrichr_libraries:
-        significant_genes = gene_df[gene_df["fdr"] <= metadata.analysis.fdr_threshold]["gene"].tolist() if "gene" in gene_df.columns else []
-        enrichment_results = run_enrichr(
-            significant_genes,
-            libraries=settings.enrichr_libraries,
-            cutoff=metadata.analysis.fdr_threshold,
+        significant_genes = (
+            gene_df[gene_df["fdr"] <= metadata.analysis.fdr_threshold]["gene"].tolist()
+            if "gene" in gene_df.columns
+            else []
         )
+        if settings.use_native_enrichment:
+            background_genes = library["gene_symbol"].astype(str).tolist()
+            try:
+                enrichment_results = native_enrichment.run_enrichment_native(
+                    significant_genes,
+                    settings.enrichr_libraries,
+                    background=background_genes,
+                    fdr_threshold=metadata.analysis.fdr_threshold,
+                )
+                logger.info("Native enrichment backend executed for libraries: %s", settings.enrichr_libraries)
+            except DataContractError:
+                raise
+            except ImportError as exc:
+                message = (
+                    "Native enrichment requested but backend unavailable; falling back to Python implementation."
+                )
+                warnings.append(message)
+                logger.warning("Native enrichment unavailable: %s", exc)
+            except Exception as exc:  # pragma: no cover - defensive path
+                message = f"Native enrichment failed ({exc}); falling back to Python implementation."
+                warnings.append(message)
+                logger.warning(message)
+        if not enrichment_results:
+            enrichment_results = run_enrichr(
+                significant_genes,
+                libraries=settings.enrichr_libraries,
+                cutoff=metadata.analysis.fdr_threshold,
+            )
 
     annotation_data = {}
     if settings.cache_annotations:

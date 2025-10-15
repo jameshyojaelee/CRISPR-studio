@@ -75,6 +75,8 @@ def run_pipeline(
     metadata: Path = typer.Argument(..., help="Path to experiment metadata JSON."),
     output_root: Optional[Path] = typer.Option(None, "--output-root", "-o", help="Directory to store analysis artifacts."),
     use_mageck: bool = typer.Option(True, help="Attempt to run MAGeCK if available."),
+    use_native_rra: bool = typer.Option(False, help="Use native Rust RRA backend when built."),
+    use_native_enrichment: bool = typer.Option(False, help="Use native enrichment backend when built."),
     enrichr: Optional[str] = typer.Option(None, "--enrichr-libraries", help="Comma-separated Enrichr libraries."),
     enable_llm: bool = typer.Option(False, help="Enable LLM narrative generation if API key configured."),
     narrative_model: Optional[str] = typer.Option(None, help="Override LLM model name."),
@@ -96,6 +98,8 @@ def run_pipeline(
         enrichr_libraries=libraries,
         narrative_model=narrative_model,
         narrative_temperature=narrative_temperature,
+        use_native_rra=use_native_rra,
+        use_native_enrichment=use_native_enrichment,
     )
     result = run_analysis(
         config=config,

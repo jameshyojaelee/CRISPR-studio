@@ -1,5 +1,12 @@
 [build-system]
-requires = ["setuptools>=67", "wheel"]
+requires = [
+  "setuptools>=67",
+  "wheel",
+  "scikit-build-core>=0.7",
+  "maturin>=1.4",
+  "setuptools-rust>=1.8",
+  "pybind11>=2.11"
+]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -34,7 +41,8 @@ dependencies = [
   "weasyprint",
   "pydantic>=2",
   "pydantic-settings",
-  "loguru"
+  "loguru",
+  "psutil"
 ]
 
 [project.optional-dependencies]
@@ -52,9 +60,37 @@ docs = [
 llm = [
   "openai"
 ]
+native = [
+  "cmake>=3.22",
+  "ninja>=1.11",
+  "scikit-build-core>=0.7",
+  "pybind11>=2.11",
+  "maturin>=1.4",
+  "setuptools-rust>=1.8"
+]
 
 [project.scripts]
 crispr-studio = "crispr_screen_expert.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.maturin]
+manifest-path = "rust/Cargo.toml"
+module-name = "crispr_native_rust"
+bindings = "pyo3"
+python-source = "src"
+strip = true
+
+[tool.scikit-build]
+build-dir = "cpp/build/{wheel_tag}"
+
+[tool.scikit-build.cmake]
+minimum-version = "3.22"
+build-type = "Release"
+
+[tool.scikit-build.ninja]
+minimum-version = "1.11"
+
+[tool.scikit-build.wheel]
+expand-macos-universal-tags = true

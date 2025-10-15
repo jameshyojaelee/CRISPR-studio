@@ -1,0 +1,21 @@
+[package]
+name = "crispr_native_rust"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "crispr_native_rust"
+crate-type = ["cdylib"]
+
+[features]
+default = []
+simd = []
+rayon = ["dep:rayon"]
+
+[dependencies]
+pyo3 = { version = "0.21", features = ["extension-module", "abi3-py311"] }
+numpy = "0.21"
+rayon = { version = "1.8", optional = true }
+indexmap = "2.2"
+statrs = "0.16"
