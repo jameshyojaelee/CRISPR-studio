@@ -28,3 +28,6 @@ artifacts/
 # OS
 .DS_Store
 Thumbs.db
+
+codex_prompts.md
+prompt02_plan.md
