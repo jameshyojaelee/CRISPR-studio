@@ -16,26 +16,39 @@ def build_layout() -> Component:
             dcc.Store(id=ids.STORE_CONFIG),
             dcc.Store(id=ids.STORE_RESULTS),
             dcc.Store(id=ids.STORE_JOB),
-            dcc.Interval(id=ids.INTERVAL_JOB, interval=4000, n_intervals=0, disabled=True),
+            dcc.Store(id=ids.STORE_SELECTED_GENE),
+            dcc.Store(id=ids.STORE_HISTORY),
+            dcc.Interval(id=ids.INTERVAL_JOB, interval=2000, n_intervals=0, disabled=True),
+            dcc.Interval(id=ids.INTERVAL_HISTORY, interval=20000, n_intervals=0, disabled=False),
+            dcc.Download(id=ids.DOWNLOAD_GENE),
             _build_hero(),
             dbc.Container(
-                [
-                    dbc.Tabs(
-                        id=ids.TABS_MAIN,
-                        active_tab="upload",
-                        className="main-tabs",
-                        children=[
-                            dbc.Tab(_upload_tab(), label="Data Uploader", tab_id="upload"),
-                            dbc.Tab(_results_tab(), label="Results Explorer", tab_id="results"),
-                            dbc.Tab(_qc_tab(), label="Quality Control", tab_id="qc"),
-                            dbc.Tab(_pathways_tab(), label="Pathway Insights", tab_id="pathways"),
-                            dbc.Tab(_reports_tab(), label="Reporting Studio", tab_id="reports"),
-                        ],
-                    )
-                ],
+                dbc.Row(
+                    [
+                        dbc.Col(
+                            dbc.Tabs(
+                                id=ids.TABS_MAIN,
+                                active_tab="upload",
+                                className="main-tabs",
+                                children=[
+                                    dbc.Tab(_upload_tab(), label="Data Uploader", tab_id="upload"),
+                                    dbc.Tab(_results_tab(), label="Results Explorer", tab_id="results"),
+                                    dbc.Tab(_qc_tab(), label="Quality Control", tab_id="qc"),
+                                    dbc.Tab(_pathways_tab(), label="Pathway Insights", tab_id="pathways"),
+                                    dbc.Tab(_reports_tab(), label="Reporting Studio", tab_id="reports"),
+                                ],
+                            ),
+                            lg=9,
+                            xl=9,
+                        ),
+                        dbc.Col(_history_sidebar(), lg=3, xl=3, className="history-sidebar"),
+                    ],
+                    className="g-4 main-content-row",
+                ),
                 fluid=True,
                 className="content-container",
             ),
+            _job_status_overlay(),
         ],
         className="app-root",
     )
@@ -185,7 +198,7 @@ def _results_tab() -> Component:
                             dbc.CardBody(
                                 [
                                     html.H4("Gene Leaderboard", className="section-title"),
-                                    dash_table.DataTable(
+                                    dash_table.DataTable(  # type: ignore[attr-defined]
                                         id=ids.TABLE_GENES,
                                         columns=[
                                             {"name": "Gene", "id": "gene"},
@@ -317,7 +330,20 @@ def _reports_tab() -> Component:
                                     color="primary",
                                     className="mt-3",
                                 ),
+                                dbc.Button(
+                                    "Download Sample Bundle",
+                                    id=ids.BUTTON_DOWNLOAD_SAMPLE_REPORT,
+                                    color="secondary",
+                                    outline=True,
+                                    className="mt-3 ms-2",
+                                    disabled=True,
+                                ),
                                 dcc.Download(id=ids.DOWNLOAD_REPORT),
+                                dcc.Download(id=ids.DOWNLOAD_SAMPLE_REPORT),
+                                html.Small(
+                                    "Run `make build-report` to refresh the latest analysis and regenerate the showcase bundle.",
+                                    className="muted mt-3 d-block",
+                                ),
                             ]
                         ),
                         className="glass-card",
@@ -350,4 +376,62 @@ def _upload_zone(component_id: str, label: str) -> Component:
             className="upload-inner",
         ),
         className="upload-dropzone",
+    )
+
+
+def _history_sidebar() -> Component:
+    return dbc.Card(
+        dbc.CardBody(
+            [
+                html.Div(
+                    [
+                        html.H4("Run History", className="history-title", id=ids.RUN_HISTORY_TITLE),
+                        html.Small("Last five completed analyses", className="history-subtitle"),
+                    ],
+                    className="d-flex flex-column gap-1 mb-3",
+                ),
+                html.Div(id=ids.RUN_HISTORY_CONTAINER, className="history-list"),
+                html.Div(
+                    "No completed runs yet.",
+                    id=ids.RUN_HISTORY_EMPTY,
+                    className="history-empty",
+                    hidden=True,
+                ),
+            ]
+        ),
+        className="glass-card history-card",
+    )
+
+
+def _job_status_overlay() -> Component:
+    return html.Div(
+        [
+            dbc.Card(
+                [
+                    dbc.CardBody(
+                        [
+                            dbc.Spinner(color="light", size="sm", className="me-2"),
+                            html.Div(
+                                [
+                                    html.Div(id=ids.JOB_STATUS_TEXT, className="job-status-title"),
+                                    html.Small(id=ids.JOB_STATUS_RUNTIME, className="job-status-runtime"),
+                                ],
+                                className="flex-grow-1",
+                            ),
+                            dbc.Button(
+                                "Dismiss",
+                                id=ids.JOB_STATUS_DISMISS,
+                                color="link",
+                                className="job-status-dismiss",
+                            ),
+                        ],
+                        className="d-flex align-items-center gap-3",
+                    ),
+                    html.Div(id=ids.JOB_STATUS_WARNINGS, className="job-status-warnings"),
+                ],
+                className="job-status-card glass-card",
+            )
+        ],
+        id=ids.JOB_STATUS_OVERLAY,
+        className="job-status-overlay hidden",
     )

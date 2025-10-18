@@ -8,3 +8,11 @@ class DataContractError(Exception):
 
     def __init__(self, message: str):
         super().__init__(message)
+
+
+class QualityControlError(Exception):
+    """Raised when QC checks detect critical issues that block analysis."""
+
+    def __init__(self, message: str, metrics: list):
+        super().__init__(message)
+        self.metrics = list(metrics)

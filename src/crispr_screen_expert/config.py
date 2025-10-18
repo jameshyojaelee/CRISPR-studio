@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     default_fdr_threshold: float = 0.1
     enable_analytics: bool = False
     openai_api_key: Optional[str] = None
+    api_key: Optional[str] = None
 
 
 @lru_cache(1)

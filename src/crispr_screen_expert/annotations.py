@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, cast
+from typing import Dict, Iterable, List, Optional, Tuple, cast
 
 import requests
 
@@ -51,11 +51,11 @@ def fetch_gene_annotations(
     species: str = "human",
     fields: Optional[List[str]] = None,
     session: Optional[requests.Session] = None,
-) -> Dict[str, Dict[str, object]]:
+) -> Tuple[Dict[str, Dict[str, object]], List[str]]:
     """Fetch gene annotations from MyGene.info with local caching."""
     genes = [g.upper() for g in genes if g]
     if not genes:
-        return {}
+        return {}, []
 
     cache = _load_cache(cache_path)
     remaining = [gene for gene in genes if gene not in cache]
@@ -64,6 +64,7 @@ def fetch_gene_annotations(
         fields = ["symbol", "name", "summary", "entrezgene", "uniprot", "pathway"]
 
     annotations: Dict[str, Dict[str, object]] = {gene: cache.get(gene, {}) for gene in genes}
+    warnings: List[str] = []
 
     if remaining:
         sess = session or requests.Session()
@@ -83,8 +84,15 @@ def fetch_gene_annotations(
             response.raise_for_status()
             payload = response.json()
             hits = payload.get("hits", []) if isinstance(payload, dict) else []
+        except requests.Timeout as exc:
+            message = f"Gene annotation request to MyGene.info timed out ({exc}); skipping annotations."
+            logger.warning(message)
+            warnings.append(message)
+            hits = []
         except requests.RequestException as exc:
-            logger.warning("Failed to fetch annotations from MyGene.info: %s", exc)
+            message = f"Failed to fetch annotations from MyGene.info: {exc}"
+            logger.warning(message)
+            warnings.append(message)
             hits = []
 
         for hit in hits:
@@ -96,4 +104,12 @@ def fetch_gene_annotations(
 
         _save_cache(cache_path, cache)
 
-    return annotations
+    missing = [gene for gene, info in annotations.items() if not info]
+    if missing:
+        sample = ", ".join(missing[:5])
+        message = (
+            f"No annotations available for {len(missing)} genes" + (f" (e.g., {sample})" if sample else "")
+        )
+        warnings.append(message)
+
+    return annotations, warnings

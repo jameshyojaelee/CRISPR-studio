@@ -14,6 +14,7 @@ from .pipeline import DataPaths, PipelineSettings, run_analysis
 from .logging_config import get_logger
 from .analytics import summarise_events
 from .config import get_settings
+from .exceptions import DataContractError, QualityControlError
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
 logger = get_logger(__name__)
@@ -81,6 +82,7 @@ def run_pipeline(
     enable_llm: bool = typer.Option(False, help="Enable LLM narrative generation if API key configured."),
     narrative_model: Optional[str] = typer.Option(None, help="Override LLM model name."),
     narrative_temperature: float = typer.Option(0.2, help="LLM sampling temperature."),
+    skip_annotations: bool = typer.Option(False, help="Skip gene annotation requests (offline mode)."),
 ) -> None:
     """Execute the CRISPR-studio analysis pipeline."""
     counts_path = _resolve_path(counts)
@@ -100,12 +102,27 @@ def run_pipeline(
         narrative_temperature=narrative_temperature,
         use_native_rra=use_native_rra,
         use_native_enrichment=use_native_enrichment,
+        cache_annotations=not skip_annotations,
     )
-    result = run_analysis(
-        config=config,
-        paths=DataPaths(counts=counts_path, library=library_path, metadata=metadata_path),
-        settings=pipeline_settings,
-    )
+    try:
+        result = run_analysis(
+            config=config,
+            paths=DataPaths(counts=counts_path, library=library_path, metadata=metadata_path),
+            settings=pipeline_settings,
+        )
+    except QualityControlError as exc:
+        typer.secho("Analysis aborted due to critical QC findings.", fg=typer.colors.RED)
+        for metric in exc.metrics:
+            detail = metric.name
+            if metric.value is not None:
+                detail += f" (value={metric.value})"
+            if metric.recommendation:
+                detail += f" — {metric.recommendation}"
+            typer.echo(f"  - {detail}")
+        raise typer.Exit(code=2) from exc
+    except DataContractError as exc:
+        typer.secho(f"Input validation failed: {exc}", fg=typer.colors.RED)
+        raise typer.Exit(code=1) from exc
 
     typer.secho("Analysis completed.", fg=typer.colors.GREEN)
     logger.info("Analysis completed", artifacts=result.artifacts)
@@ -153,6 +170,23 @@ def analytics_summary() -> None:
     """Summarise opt-in analytics events."""
     summary = summarise_events()
     typer.echo(json.dumps(summary, indent=2))
+
+
+@app.command("serve-api")
+def serve_api(
+    host: str = typer.Option("0.0.0.0", help="Host to bind the API server."),
+    port: int = typer.Option(8000, help="Port to bind the API server."),
+    reload: bool = typer.Option(False, help="Enable auto-reload (development only)."),
+) -> None:
+    """Launch the FastAPI service via uvicorn."""
+    try:
+        import uvicorn
+    except ImportError as exc:  # pragma: no cover - runtime dependency
+        typer.secho("uvicorn is required to serve the API. Install with `pip install uvicorn`.", fg=typer.colors.RED)
+        raise typer.Exit(code=1) from exc
+
+    typer.echo(f"Starting CRISPR-studio API on {host}:{port} ...")
+    uvicorn.run("crispr_screen_expert.api:create_app", host=host, port=port, reload=reload, factory=True)
 
 
 def main() -> None:

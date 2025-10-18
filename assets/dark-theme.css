@@ -144,6 +144,196 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+.main-content-row {
+  align-items: stretch;
+}
+
+.history-sidebar {
+  min-width: 0;
+}
+
+.history-card {
+  height: 100%;
+  display: flex;
+}
+
+.history-card .card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.history-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.history-subtitle {
+  color: var(--neutral-400);
+}
+
+.history-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.history-item {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 14px !important;
+  border: 1px solid var(--border-subtle) !important;
+  padding: 0.75rem 1rem;
+  transition: transform 0.15s ease, border-color 0.2s ease;
+}
+
+.history-item:hover {
+  transform: translateX(4px);
+  border-color: rgba(127, 90, 240, 0.6) !important;
+}
+
+.history-item-title {
+  font-weight: 600;
+}
+
+.history-item-subtitle {
+  color: var(--neutral-400);
+}
+
+.history-item-warning-badge {
+  margin-top: 0.4rem;
+}
+
+.history-empty {
+  color: var(--neutral-400);
+  font-style: italic;
+}
+
+.job-status-overlay {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 1050;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.job-status-overlay.hidden {
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(15px);
+}
+
+.job-status-card {
+  backdrop-filter: blur(16px);
+  min-width: 320px;
+}
+
+.job-status-title {
+  font-weight: 600;
+}
+
+.job-status-runtime {
+  color: var(--neutral-400);
+}
+
+.job-status-dismiss {
+  color: var(--neutral-400);
+  text-decoration: underline;
+}
+
+.job-status-warnings {
+  padding: 0 1.25rem 1rem;
+}
+
+.job-warning-alert {
+  margin-bottom: 0.5rem;
+}
+
+.gene-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.gene-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.gene-modal-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.gene-badge-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.gene-badge {
+  background: rgba(127, 90, 240, 0.2) !important;
+  border: 1px solid rgba(127, 90, 240, 0.6);
+}
+
+.gene-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.8rem;
+}
+
+.gene-metric-grid .metric-label {
+  color: var(--neutral-400);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+.gene-metric-grid .metric-value {
+  font-size: 1.1rem;
+}
+
+.gene-sparkline {
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+  padding: 0.5rem;
+}
+
+.gene-sparkline-empty {
+  color: var(--neutral-400);
+  font-style: italic;
+}
+
+.gene-summary {
+  color: var(--neutral-400);
+  line-height: 1.5;
+}
+
+.gene-download-btn {
+  align-self: flex-start;
+}
+
+.muted {
+  color: var(--neutral-400);
+}
+
+@media (max-width: 992px) {
+  .main-content-row {
+    flex-direction: column;
+  }
+
+  .history-sidebar {
+    order: -1;
+  }
+
+  .job-status-overlay {
+    right: 1rem;
+    left: 1rem;
+  }
+}
+
 .main-tabs .nav-link {
   background: transparent;
   border: none;

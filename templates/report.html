@@ -1,72 +1,392 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8" />
-    <title>{{ summary_title }}</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 2rem; }
-        h1, h2, h3 { color: #2c3e50; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }
-        th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
-        th { background: #f2f2f2; }
-        .warning { color: #c0392b; }
-    </style>
+  <meta charset="utf-8" />
+  <title>{{ summary_title }}</title>
+  <style>
+    :root {
+      --text-primary: #16192b;
+      --text-muted: #4a4f6b;
+      --border: #d9dce8;
+      --accent: #4154f1;
+      --bg-soft: #f7f8ff;
+      --bg-muted: #f0f1f7;
+      --critical: #d12c50;
+      --warning: #e57d1b;
+      --info: #2274a5;
+      --ok: #1f8a4c;
+      font-family: "Inter", "Segoe UI", sans-serif;
+      color: var(--text-primary);
+    }
+
+    @page {
+      size: A4;
+      margin: 22mm 20mm;
+    }
+
+    body {
+      margin: 0;
+      background: #fff;
+      color: var(--text-primary);
+    }
+
+    .page {
+      page-break-after: always;
+      padding: 20px 16px;
+    }
+
+    .page:last-child {
+      page-break-after: auto;
+    }
+
+    h1, h2, h3, h4 {
+      margin: 0 0 12px 0;
+      font-weight: 600;
+    }
+
+    h1 { font-size: 2.6rem; }
+    h2 { font-size: 1.6rem; }
+    h3 { font-size: 1.2rem; }
+
+    p { margin: 0 0 12px 0; line-height: 1.6; }
+
+    .cover {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: 0 24px;
+      background: linear-gradient(135deg, rgba(65,84,241,0.12), rgba(136,58,255,0.08));
+    }
+
+    .cover-meta {
+      margin-top: 24px;
+      font-size: 1rem;
+      color: var(--text-muted);
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+      margin: 16px 0 28px 0;
+    }
+
+    .kpi-card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 18px;
+      background: #fff;
+    }
+
+    .kpi-label {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+    }
+
+    .kpi-value {
+      font-size: 1.5rem;
+      margin-top: 4px;
+    }
+
+    .section {
+      margin-bottom: 32px;
+    }
+
+    .charts {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .chart-card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fff;
+    }
+
+    .chart-card h3 {
+      margin-bottom: 8px;
+      font-size: 1rem;
+    }
+
+    .chart-card svg {
+      width: 100%;
+      height: auto;
+    }
+
+    .pathway-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+
+    .pathway-card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      background: var(--bg-soft);
+    }
+
+    .pathway-card h4 {
+      font-size: 1rem;
+      margin-bottom: 4px;
+    }
+
+    .qc-group {
+      margin-bottom: 20px;
+    }
+
+    .qc-group h3 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .qc-group table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 0.95rem;
+    }
+
+    .qc-group th,
+    .qc-group td {
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+      text-align: left;
+    }
+
+    .qc-critical { color: var(--critical); }
+    .qc-warning { color: var(--warning); }
+    .qc-info { color: var(--info); }
+    .qc-ok { color: var(--ok); }
+
+    .genes-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+    }
+
+    .genes-table th,
+    .genes-table td {
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+      font-size: 0.95rem;
+    }
+
+    .narrative-block {
+      border-left: 3px solid var(--accent);
+      padding-left: 14px;
+      margin-bottom: 18px;
+    }
+
+    .appendix-title {
+      font-size: 1.3rem;
+      margin-top: 24px;
+    }
+
+    .footer-note {
+      margin-top: 32px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .muted {
+      color: var(--text-muted);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      background: var(--bg-muted);
+      color: var(--text-primary);
+      margin-right: 6px;
+    }
+
+    .chart-placeholder {
+      padding: 40px 0;
+      text-align: center;
+      font-style: italic;
+      color: var(--text-muted);
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      background: var(--bg-soft);
+    }
+  </style>
 </head>
 <body>
-    <h1>{{ summary_title }}</h1>
-    <p><strong>Screen type:</strong> {{ result.summary.screen_type.value }}</p>
-    <p><strong>Scoring method:</strong> {{ result.summary.scoring_method.value }}</p>
-    <p><strong>Total guides:</strong> {{ result.summary.total_guides }}</p>
-    <p><strong>Total genes:</strong> {{ result.summary.total_genes }}</p>
-    <p><strong>Significant genes:</strong> {{ result.summary.significant_genes }}</p>
+  <section class="page cover">
+    <div>
+      <h1>{{ cover.title }}</h1>
+      <p class="muted">High-level insights and QC summary for your CRISPR screen.</p>
+      <div class="cover-meta">
+        <p><strong>Experiment:</strong> {{ cover.experiment }}</p>
+        {% if cover.run_label %}
+        <p><strong>Run:</strong> {{ cover.run_label }}</p>
+        {% endif %}
+        <p><strong>Screen type:</strong> {{ cover.screen_type }}</p>
+      </div>
+    </div>
+  </section>
 
-    <h2>Top Genes</h2>
-    <table>
-        <tr>
+  <section class="page">
+    <div class="section">
+      <h2>Executive Summary</h2>
+      <div class="kpi-grid">
+        {% for card in kpis %}
+        <div class="kpi-card">
+          <div class="kpi-label">{{ card.label }}</div>
+          <div class="kpi-value">{{ card.value }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% if narratives %}
+        {% for snippet in narratives %}
+          <div class="narrative-block">
+            <h3>{{ snippet.title }}</h3>
+            <p>{{ snippet.body }}</p>
+          </div>
+        {% endfor %}
+      {% endif %}
+    </div>
+
+    <div class="section">
+      <h2>Key Visualisations</h2>
+      <div class="charts">
+        <div class="chart-card">
+          <h3>Volcano Plot</h3>
+          {% if volcano_svg %}
+            {{ volcano_svg | safe }}
+          {% else %}
+            <div class="chart-placeholder">Volcano plot unavailable.</div>
+          {% endif %}
+        </div>
+        <div class="chart-card">
+          <h3>Replicate Correlation</h3>
+          {% if replicate_svg %}
+            {{ replicate_svg | safe }}
+          {% else %}
+            <div class="chart-placeholder">Replicate chart unavailable.</div>
+          {% endif %}
+        </div>
+        <div class="chart-card">
+          <h3>Guide Detection</h3>
+          {% if detection_svg %}
+            {{ detection_svg | safe }}
+          {% else %}
+            <div class="chart-placeholder">Detection heatmap unavailable.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Pathway Highlights</h2>
+      {% if pathway_cards %}
+        <div class="pathway-grid">
+          {% for card in pathway_cards %}
+          <div class="pathway-card">
+            <h4>{{ card.name }}</h4>
+            <div class="badge">{{ card.source }}</div>
+            <p class="muted">FDR {{ card.fdr }}</p>
+            {% if card.description %}
+              <p>{{ card.description }}</p>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="muted">No pathway enrichments met the reporting threshold.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="page">
+    <div class="section">
+      <h2>Quality Control</h2>
+      {% set order = ["critical", "warning", "info", "ok"] %}
+      {% for key in order %}
+        {% set metrics = qc_groups.get(key, []) %}
+        {% if metrics %}
+          <div class="qc-group">
+            <h3 class="qc-{{ key }}">{{ key.upper() }} ({{ metrics|length }})</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Metric</th>
+                  <th>Value</th>
+                  <th>Details</th>
+                  <th>Recommendation</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for metric in metrics %}
+                  <tr>
+                    <td>{{ metric.name }}</td>
+                    <td>{{ metric.value if metric.value is not none else "—" }}</td>
+                    <td>{{ metric.details or "—" }}</td>
+                    <td>{{ metric.recommendation or "—" }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+
+    <div class="section">
+      <h2>Top Genes</h2>
+      <table class="genes-table">
+        <thead>
+          <tr>
+            <th>Rank</th>
             <th>Gene</th>
             <th>Score</th>
             <th>FDR</th>
             <th>log2FC</th>
-        </tr>
-        {% for gene in top_genes %}
-        <tr>
+            <th>Guides</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for gene in top_genes %}
+          <tr>
+            <td>{{ gene.rank or loop.index }}</td>
             <td>{{ gene.gene_symbol }}</td>
             <td>{{ gene.score }}</td>
             <td>{{ gene.fdr }}</td>
             <td>{{ gene.log2_fold_change }}</td>
-        </tr>
-        {% endfor %}
-    </table>
+            <td>{{ gene.n_guides }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
 
-    <h2>Pathway Highlights</h2>
-    <table>
-        <tr>
-            <th>Pathway</th>
-            <th>Source</th>
-            <th>FDR</th>
-            <th>Genes</th>
-        </tr>
-        {% for pathway in pathway_results %}
-        <tr>
-            <td>{{ pathway.name }}</td>
-            <td>{{ pathway.source }}</td>
-            <td>{{ pathway.fdr }}</td>
-            <td>{{ pathway.genes|join(', ') }}</td>
-        </tr>
-        {% endfor %}
-    </table>
+  <section class="page">
+    <h2 class="appendix-title">Appendix — Narrative</h2>
+    {% if narratives %}
+      {% for snippet in narratives %}
+        <div class="section">
+          <h3>{{ snippet.title }}</h3>
+          <p>{{ snippet.body }}</p>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="muted">Narrative generation disabled for this run.</p>
+    {% endif %}
 
-    <h2>Quality Control</h2>
-    <ul>
-        {% for metric in qc_metrics %}
-        <li class="{{ 'warning' if not metric.ok else '' }}">{{ metric.name }}: {{ metric.value }} ({{ metric.severity.value }})</li>
-        {% endfor %}
-    </ul>
-
-    <h2>Narrative</h2>
-    {% for snippet in narratives %}
-    <h3>{{ snippet.title }}</h3>
-    <p>{{ snippet.body }}</p>
-    {% endfor %}
+    <div class="footer-note">
+      Generated by CRISPR-studio. Charts rendered with Plotly and exported to SVG for high-resolution print.
+    </div>
+  </section>
 </body>
 </html>

@@ -21,7 +21,7 @@ run-app:
 	@echo "Dash application not implemented yet. Implement via Prompt 19+ before running."
 
 build-report:
-	@echo "Reporting pipeline not implemented yet. Complete relevant prompts first."
+	$(PYTHON) scripts/build_report.py
 
 clean:
 	rm -rf build dist *.egg-info .pytest_cache .mypy_cache logs artifacts .cache

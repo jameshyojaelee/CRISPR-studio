@@ -5,9 +5,10 @@ from __future__ import annotations
 import csv
 import logging
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, Iterable, List, Tuple
 
 import pandas as pd
+from pandas.errors import ParserError
 
 from .exceptions import DataContractError
 from .models import ExperimentConfig, load_experiment_config
@@ -29,6 +30,17 @@ def _detect_delimiter(path: Path) -> str:
     return ","
 
 
+def _format_offending_values(values: Iterable[tuple[str, object]], *, max_items: int = 5) -> str:
+    collected = list(values)
+    formatted = []
+    for idx, value in collected[:max_items]:
+        formatted.append(f"{idx}={value!r}")
+    remaining = max(0, len(collected) - max_items)
+    if remaining > 0:
+        formatted.append(f"...(+{remaining} more)")
+    return ", ".join(formatted)
+
+
 def load_counts(path: Path) -> pd.DataFrame:
     """Load sgRNA count matrix with guides as index and samples as columns."""
     if not path.exists():
@@ -37,6 +49,9 @@ def load_counts(path: Path) -> pd.DataFrame:
     delimiter = _detect_delimiter(path)
     try:
         df = pd.read_csv(path, sep=delimiter, dtype={"guide_id": str})
+    except ParserError as exc:
+        details = exc.args[0] if exc.args else str(exc)
+        raise DataContractError(f"Counts file appears malformed ({details}).") from exc
     except Exception as exc:
         raise DataContractError(f"Failed to parse counts file {path}: {exc}") from exc
 
@@ -48,12 +63,27 @@ def load_counts(path: Path) -> pd.DataFrame:
 
     counts_df = df.set_index("guide_id")
 
-    # Coerce values to numeric, reporting any failures.
+    # Coerce values to integer dtype, reporting any failures with context.
     for column in counts_df.columns:
-        try:
-            counts_df[column] = pd.to_numeric(counts_df[column], errors="raise")
-        except Exception as exc:
-            raise DataContractError(f"Counts column '{column}' contains non-numeric values: {exc}") from exc
+        column_series = counts_df[column]
+        coerced = pd.to_numeric(column_series, errors="coerce")
+        invalid_mask = coerced.isna() & column_series.notna()
+        if invalid_mask.any():
+            offenders = list(zip(column_series[invalid_mask].index.tolist(), column_series[invalid_mask].tolist()))
+            sample = _format_offending_values(offenders)
+            raise DataContractError(
+                f"Counts column '{column}' contains non-numeric values at guides: {sample}"
+            )
+
+        fractional = coerced[~coerced.isna()] % 1 != 0
+        if fractional.any():
+            offenders = list(zip(fractional[fractional].index.tolist(), column_series[fractional].tolist()))
+            sample = _format_offending_values(offenders)
+            raise DataContractError(
+                f"Counts column '{column}' contains non-integer values at guides: {sample}"
+            )
+
+        counts_df[column] = coerced.astype("int64")
 
     if (counts_df < 0).any().any():
         raise DataContractError("Counts matrix contains negative values.")

@@ -18,10 +18,18 @@ from .annotations import fetch_gene_annotations
 from .config import get_settings
 from .data_loader import load_counts, load_library
 from .enrichment import run_enrichr
-from .exceptions import DataContractError
+from .exceptions import DataContractError, QualityControlError
 from .logging_config import get_logger
 from .mageck_adapter import MageckExecutionError, run_mageck
-from .models import AnalysisResult, ExperimentConfig, NarrativeSnippet
+from .models import (
+    AnalysisResult,
+    ExperimentConfig,
+    GuideRecord,
+    NarrativeSnippet,
+    QCSeverity,
+    ScoringMethod,
+    ScreenType,
+)
 from .narrative import NarrativeSettings, generate_narrative
 from .normalization import compute_log2_fold_change, normalize_counts_cpm
 from .native import enrichment as native_enrichment
@@ -102,6 +110,75 @@ def _prepare_mageck_input(
     return mageck_input_path
 
 
+def _normalize_mageck_output(df: pd.DataFrame, screen_type: ScreenType) -> pd.DataFrame:
+    """Map MAGeCK bidirectional outputs onto unified columns."""
+    normalized = df.copy()
+    preferred = "neg" if screen_type == ScreenType.DROPOUT else "pos"
+    alternate = "pos" if preferred == "neg" else "neg"
+    suffix_map = {
+        "score": "score",
+        "p-value": "p_value",
+        "fdr": "fdr",
+        "rank": "rank",
+    }
+
+    if screen_type == ScreenType.ENRICHMENT and "pos|fdr" in normalized.columns:
+        mapping = {
+            f"pos|{suffix}": alias for suffix, alias in suffix_map.items() if f"pos|{suffix}" in normalized.columns
+        }
+        directed = normalized.rename(columns=mapping).copy()
+        directed["direction"] = "pos"
+        return directed
+
+    if "fdr" in normalized.columns:
+        if "direction" not in normalized.columns:
+            normalized["direction"] = "neg"
+        return normalized
+
+    def _apply_direction(direction: str) -> Optional[pd.DataFrame]:
+        mapping = {
+            f"{direction}|{suffix}": alias
+            for suffix, alias in suffix_map.items()
+            if f"{direction}|{suffix}" in normalized.columns
+        }
+        if not mapping:
+            return None
+        directed = normalized.rename(columns=mapping).copy()
+        directed["direction"] = direction
+        return directed
+
+    directed = _apply_direction(preferred)
+    if directed is None:
+        directed = _apply_direction(alternate)
+
+    return directed if directed is not None else normalized
+
+
+def _build_guide_lookup(log2fc: pd.Series, library: pd.DataFrame) -> Dict[str, List[GuideRecord]]:
+    """Create per-gene guide records for downstream visualisations."""
+    lookup: Dict[str, List[GuideRecord]] = {}
+    merged = library.set_index("guide_id").join(log2fc.rename("log2_fold_change"), how="inner")
+    if merged.empty:
+        return lookup
+
+    for guide_id, row in merged.iterrows():
+        gene_symbol = str(row.get("gene_symbol", "")).upper()
+        if not gene_symbol:
+            continue
+        weight_value = row.get("weight", 1.0)
+        if pd.isna(weight_value):
+            weight_value = 1.0
+        record = GuideRecord(
+            guide_id=str(guide_id),
+            gene_symbol=gene_symbol,
+            weight=float(weight_value),
+            log2_fold_change=float(row["log2_fold_change"]) if pd.notna(row["log2_fold_change"]) else None,
+            p_value=None,
+        )
+        lookup.setdefault(gene_symbol, []).append(record)
+    return lookup
+
+
 def _env_flag(name: str) -> Optional[bool]:
     value = os.getenv(name)
     if value is None:
@@ -165,12 +242,32 @@ def run_analysis(
         metadata,
         min_count=metadata.analysis.min_count_threshold,
     )
+    critical_metrics = [metric for metric in qc_metrics if metric.severity == QCSeverity.CRITICAL]
+    if critical_metrics:
+        failure_details = ", ".join(metric.name for metric in critical_metrics)
+        log_event(
+            "analysis_failed",
+            {
+                "output_dir": str(output_dir),
+                "reason": "qc_failure",
+                "critical_metrics": failure_details,
+            },
+        )
+        raise QualityControlError(
+            f"Quality control checks failed: {failure_details}. Resolve issues before rerunning.",
+            metrics=critical_metrics,
+        )
 
     counts_cpm = normalize_counts_cpm(counts)
     log2fc = compute_log2_fold_change(counts_cpm, metadata)
     gene_df: Optional[pd.DataFrame] = None
     artifacts: Dict[str, str] = {}
     warnings: List[str] = []
+    raw_counts_path = output_dir / "raw_counts.csv"
+    counts.to_csv(raw_counts_path, index_label="guide_id")
+    artifacts["raw_counts"] = str(raw_counts_path)
+    guide_lookup = _build_guide_lookup(log2fc, library)
+    scoring_method_used = metadata.analysis.scoring_method
 
     if settings.use_mageck:
         mageck_input_path = _prepare_mageck_input(counts, library, output_dir)
@@ -184,7 +281,8 @@ def run_analysis(
             mageck_failed = True
             mageck_df = None
         if mageck_df is not None:
-            gene_df = mageck_df
+            gene_df = _normalize_mageck_output(mageck_df, metadata.screen_type)
+            scoring_method_used = ScoringMethod.MAGECK
         elif not mageck_failed:
             warnings.append("MAGeCK not available or failed; using RRA fallback.")
 
@@ -195,13 +293,14 @@ def run_analysis(
             use_native_rra=settings.use_native_rra,
             warnings=warnings,
         )
+        scoring_method_used = ScoringMethod.RRA
 
     gene_df_path = output_dir / "gene_results.csv"
     gene_df.to_csv(gene_df_path, index=False)
     artifacts["gene_results"] = str(gene_df_path)
 
     counts_path = output_dir / "normalized_counts.csv"
-    counts_cpm.to_csv(counts_path)
+    counts_cpm.to_csv(counts_path, index_label="guide_id")
     artifacts["normalized_counts"] = str(counts_path)
 
     qc_path = output_dir / "qc_metrics.json"
@@ -244,10 +343,11 @@ def run_analysis(
                 cutoff=metadata.analysis.fdr_threshold,
             )
 
-    annotation_data = {}
+    annotation_data: Dict[str, Dict[str, object]] = {}
     if settings.cache_annotations:
         genes = gene_df["gene"].tolist() if "gene" in gene_df.columns else gene_df["gene_symbol"].tolist()
-        annotation_data = fetch_gene_annotations(genes)
+        annotation_data, fetch_warnings = fetch_gene_annotations(genes)
+        warnings.extend(fetch_warnings)
         annotations_path = output_dir / "gene_annotations.json"
         annotations_path.write_text(json.dumps(annotation_data, indent=2))
         artifacts["gene_annotations"] = str(annotations_path)
@@ -258,7 +358,7 @@ def run_analysis(
         total_genes=gene_df.shape[0],
         significant_genes=0,
         screen_type=metadata.screen_type,
-        scoring_method=metadata.analysis.scoring_method,
+        scoring_method=scoring_method_used,
         runtime_seconds=runtime,
     )
 
@@ -270,6 +370,7 @@ def run_analysis(
         qc_metrics=qc_metrics,
         narratives=narratives,
         pathway_results=enrichment_results,
+        guide_lookup=guide_lookup,
         artifacts=artifacts,
         warnings=warnings,
     )

@@ -11,7 +11,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "crispr_screen_expert"
-version = "0.1.0"
+version = "0.2.0"
 description = "CRISPR-studio core package for pooled CRISPR screen analysis and reporting."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -42,13 +42,17 @@ dependencies = [
   "pydantic>=2",
   "pydantic-settings",
   "loguru",
-  "psutil"
+  "psutil",
+  "kaleido>=0.2.1",
+  "fastapi",
+  "uvicorn"
 ]
 
 [project.optional-dependencies]
 dev = [
   "pytest",
   "pytest-cov",
+  "dash[testing]",
   "ruff",
   "mypy",
   "types-requests"

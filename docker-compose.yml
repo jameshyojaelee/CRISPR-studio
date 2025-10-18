@@ -28,3 +28,19 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     depends_on:
       - app
+
+  api:
+    build:
+      context: .
+      args:
+        BUILD_NATIVE: ${BUILD_NATIVE:-0}
+    environment:
+      - API_KEY=${API_KEY:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./artifacts:/app/artifacts
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    command: ["python", "app_api.py"]

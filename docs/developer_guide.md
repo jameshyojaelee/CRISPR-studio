@@ -34,6 +34,22 @@ Core modules:
 - `reporting.py`: Jinja2 + optional WeasyPrint export.
 - `config.py` / `logging_config.py`: centralised settings and loguru configuration.
 
+## FastAPI Service
+
+- Module: `src/crispr_screen_expert/api.py` exposes a FastAPI app with the following endpoints (all expect the `X-API-Key` header when `Settings.api_key` is set):
+  - `POST /v1/analysis` – submit an analysis job. Body: `counts_path`, `library_path`, `metadata_path` (server-accessible paths) plus optional toggles (`use_mageck`, `use_native_rra`, `enrichr_libraries`, etc.). Returns `job_id`.
+  - `GET /v1/analysis/{job_id}` – poll job status. Response includes `status` (`queued`, `running`, `finished`, `failed`), optional `summary`, and `warnings`/`error` fields when available.
+  - `GET /v1/analysis/{job_id}/artifacts` – list named artifact paths once a job completes successfully.
+  - `GET /v1/analysis/{job_id}/artifacts/{name}` – download a specific artifact file (e.g., `analysis_result.json`).
+  - `GET /v1/openapi` – returns the OpenAPI schema (used by `scripts/export_openapi.py`).
+- Long-running work is delegated to the shared `JobManager` thread pool. Results and errors are cached in-memory for quick polling.
+- API settings derive from `Settings` (`ARTIFACTS_DIR`, `UPLOADS_DIR`, etc.). Set `API_KEY` in the environment (or `.env`) to enforce header-based authentication.
+- Launch options:
+  - CLI: `crispr-studio serve-api --host 0.0.0.0 --port 8000`
+  - Uvicorn entrypoint: `python app_api.py`
+  - Docker Compose service: `docker-compose up api`
+- `scripts/export_openapi.py` emits `artifacts/api_schema.json` for documentation portals or client generation.
+
 ## Native Accelerators
 
 - `src/crispr_screen_expert/native/rra.py` wraps the Rust crate `crispr_native_rust` (see `rust/`).

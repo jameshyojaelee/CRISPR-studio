@@ -96,7 +96,10 @@ Environment toggles:
    - `crispr-studio run-pipeline sample_data/demo_counts.csv sample_data/demo_library.csv sample_data/demo_metadata.json --enrichr-libraries Reactome_2022`
    - `crispr-studio run-pipeline sample_data/demo_counts.csv sample_data/demo_library.csv sample_data/demo_metadata.json --use-native-rra` (requires the Rust backend)
    - `crispr-studio run-pipeline sample_data/demo_counts.csv sample_data/demo_library.csv sample_data/demo_metadata.json --use-native-enrichment --enrichr-libraries native_demo` (requires the C++ backend)
+   - `crispr-studio run-pipeline sample_data/demo_counts.csv sample_data/demo_library.csv sample_data/demo_metadata.json --skip-annotations` (offline mode; skips MyGene.info requests)
    - `crispr-studio list-artifacts`
+   - `make build-report` to generate refreshed HTML/PDF reports under `artifacts/latest_report/`
+   - `crispr-studio serve-api --host 0.0.0.0 --port 8000` to expose the FastAPI surface (requires `uvicorn`)
 4. Review `docs/demo_runbook.md` for a walkthrough of the end-to-end analysis flow.
 
 ### Environment Configuration
@@ -128,10 +131,13 @@ Environment toggles:
 ## Troubleshooting & FAQ
 
 - **`pybind11` / compiler errors during native build** – ensure platform prerequisites are installed (see above). For macOS, run `xcode-select --install` and `brew install cmake ninja rustup`. On Windows, use an MSVC developer command prompt when executing build commands.
+- **"Quality control checks failed" message** – the pipeline now stops early when any QC metric reaches CRITICAL severity. Inspect the CLI output (or `qc_metrics.json`) for guide detection, replicate correlation, or coverage issues, address them, and rerun the pipeline.
 - **MAGeCK succeeds but native RRA import fails** – confirm `maturin develop --manifest-path rust/Cargo.toml` completed successfully and `pip show crispr_native_rust` lists the extension. Set `CRISPR_STUDIO_FORCE_PYTHON=1` to continue with the Python fallback while debugging.
 - **Native enrichment returns empty results** – verify the requested libraries exist (`native_demo` ships with the repo) and that significant genes overlap the gene sets. Use `--use-native-enrichment --enrichr-libraries native_demo` for the bundled demo.
 - **Disable native features temporarily** – set `CRISPR_STUDIO_FORCE_PYTHON=1` or remove `BUILD_NATIVE=1` from Docker builds.
 - **Where do profiling artefacts go?** – scripts write to `artifacts/` (ignored by git). Clear the directory when sharing the project to keep the repository lean.
+- **API requests return 401** – set `API_KEY` in `.env`/environment and include `X-API-Key` with each request. Without an API key the service allows unauthenticated access (prototype mode).
+- **Sample report bundle missing in the UI** – run `make build-report` to regenerate `artifacts/sample_report/` before downloading from the Dash Reporting Studio tab.
 
 ## Documentation
 - `docs/overview.md` – positioning memo and market context for the product build.

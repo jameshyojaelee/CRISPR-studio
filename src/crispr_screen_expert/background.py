@@ -42,3 +42,6 @@ class JobManager:
         if future is None:
             return None
         return future.exception()
+
+    def future(self, job_id: str) -> Optional[Future[Any]]:
+        return self._jobs.get(job_id)
