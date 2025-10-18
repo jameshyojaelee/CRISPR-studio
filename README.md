@@ -2,10 +2,15 @@
 
 - CRISPR-studio is a next-generation analysis and visualization toolkit that turns pooled CRISPR screen data into interactive biological insights.
 - Scope: automated QC, MAGeCK-compatible hit calling, pathway enrichment, curated gene context, and narrative-ready reporting for demos and admissions showcases.
+- Note: This release is an active development build and is not production ready.
 
-![CI](https://img.shields.io/badge/ci-pending-lightgrey?label=GitHub%20Actions)
-
-> **Status:** Repository scaffolding only. Use the prompts in `codex_prompts.md` to continue building the system module-by-module.
+## Project Layout
+- `src/crispr_screen_expert/` – core pipeline, CLI, and Dash app code.
+- `docs/` – product overview, runbooks, and compliance notes; see `docs/overview.md` for positioning.
+- `docs/reference/mageck/` – upstream MAGeCK report template and helper script for manual HTML notebooks.
+- `sample_data/` – synthetic demo inputs that satisfy the documented data contract.
+- `scripts/` – utilities for dataset generation and maintenance tasks.
+- `assets/` / `templates/` – UI assets used by the Dash front-end.
 
 ## Getting Started
 
@@ -92,7 +97,7 @@ Environment toggles:
    - `crispr-studio run-pipeline sample_data/demo_counts.csv sample_data/demo_library.csv sample_data/demo_metadata.json --use-native-rra` (requires the Rust backend)
    - `crispr-studio run-pipeline sample_data/demo_counts.csv sample_data/demo_library.csv sample_data/demo_metadata.json --use-native-enrichment --enrichr-libraries native_demo` (requires the C++ backend)
    - `crispr-studio list-artifacts`
-4. Follow the build prompts in `codex_prompts.md` to generate data contracts, pipeline components, and the Dash UI.
+4. Review `docs/demo_runbook.md` for a walkthrough of the end-to-end analysis flow.
 
 ### Environment Configuration
 - Create a `.env` file for secrets and overrides:
@@ -126,14 +131,11 @@ Environment toggles:
 - **MAGeCK succeeds but native RRA import fails** – confirm `maturin develop --manifest-path rust/Cargo.toml` completed successfully and `pip show crispr_native_rust` lists the extension. Set `CRISPR_STUDIO_FORCE_PYTHON=1` to continue with the Python fallback while debugging.
 - **Native enrichment returns empty results** – verify the requested libraries exist (`native_demo` ships with the repo) and that significant genes overlap the gene sets. Use `--use-native-enrichment --enrichr-libraries native_demo` for the bundled demo.
 - **Disable native features temporarily** – set `CRISPR_STUDIO_FORCE_PYTHON=1` or remove `BUILD_NATIVE=1` from Docker builds.
-- **Where do profiling artefacts go?** – scripts write to `artifacts/profiles/<python|native>/<timestamp>/`. Remove large artefacts after analysis to keep worktrees lean.
+- **Where do profiling artefacts go?** – scripts write to `artifacts/` (ignored by git). Clear the directory when sharing the project to keep the repository lean.
 
-## Documentation Roadmap
-
-| Document | Purpose | Status |
-| --- | --- | --- |
-| `docs/data_contract.md` | Define input expectations for counts, library, metadata. | Planned |
-| `docs/user_guide.md` | Walkthrough for CLI and Dash usage. | Planned |
-| `docs/developer_guide.md` | Architecture and contribution guidance. | Planned |
-| `docs/roadmap.md` | Milestones and success metrics. | Planned |
-| `docs/security_privacy.md` | Data handling checklist. | Planned |
+## Documentation
+- `docs/overview.md` – positioning memo and market context for the product build.
+- `docs/demo_runbook.md` – step-by-step instructions for demoing the pipeline.
+- `docs/data_contract.md` – structured expectations for counts, library, and metadata files.
+- `docs/user_guide.md` / `docs/developer_guide.md` – usage tips and architecture notes (draft).
+- `docs/security_privacy.md` / `docs/roadmap.md` – compliance checklist and upcoming milestones.

@@ -8,9 +8,8 @@ __pycache__/
 venv/
 env/
 
-#md files
-codex_prompts_multilang.md
-overview.md
+# Virtualenv variants
+.venv_web/
 
 # Distribution / packaging
 build/

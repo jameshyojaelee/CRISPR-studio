@@ -1,12 +1,14 @@
 ---
 title: "MAGeCK Comparison Report"
 output: html_notebook
+params:
+  comparison_name: demo
+  fdrcutoff: 0.05
 ---
 
-<!-- 
-
-This is a template file for R markdown used in MAGeCK 
- 
+<!--
+  Adapted from the upstream MAGeCK manual report template. Stored under docs/reference
+  so contributors can reproduce the default HTML report locally when needed.
 -->
 
 Author: Wei Li, weililab.org
@@ -23,15 +25,13 @@ comparison_name is the prefix of your output file, defined by the "-n" parameter
 
 
 ```{r}
-# define the comparison_name here; for example,
-# comparison_name='demo'
-comparison_name='test_manual'
+comparison_name <- params$comparison_name
 ```
 
 FDR cutoff is used to draw a boundary line in RRA or p value plots. Set it to -1 to disable the boundary line.
 ```{r}
-fdrcutoff=0.05
-# fdrcutoff=-1 # disable FDR cutoff line
+fdrcutoff <- params$fdrcutoff
+# Set fdrcutoff to -1 to disable the boundary line.
 ```
 
 
@@ -458,5 +458,3 @@ if(sum(gene_id%in%core_ess_gene_symbol)<6){
 
 }
 ```
-
-
