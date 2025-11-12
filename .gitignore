@@ -42,3 +42,4 @@ rust/target/
 # OS
 .DS_Store
 Thumbs.db
+prompts.md
