@@ -81,6 +81,13 @@ Core modules:
 - To add local gene sets, drop files into `resources/pathways/` (create directory) and point `run_gsea` at the path via CLI option or settings.
 - Update docs to reflect new options.
 
+## Gene Annotation Fetching
+
+- `annotations.fetch_gene_annotations` batches MyGene.info requests in groups of ≤500 symbols and reuses a shared `requests.Session` to avoid triggering rate limits. Set `MYGENE_BATCH_SIZE` (clamped to 500) if you need smaller bursts for constrained networks.
+- Each successful batch updates `.cache/gene_cache.json` immediately so the cache stays warm even if later batches fail. When a cache file is corrupted, it is renamed to `cache.json.bak_<timestamp>` before being rewritten.
+- Warning messages are aggregated per run and include the batch index, HTTP status (when available), and the number of skipped genes, e.g., `batch 3 (HTTP 503, 200 genes skipped)`. Missing annotations still trigger a single summary warning.
+- For air‑gapped demos, use the CLI `--skip-annotations` flag or `PipelineSettings(cache_annotations=False)` to bypass MyGene.info entirely. The Dash UI inherits the cached annotations and warning summaries from the pipeline artifacts.
+
 ## Writing Tests
 
 - Unit tests should cover success + failure paths (e.g., contract violations).
