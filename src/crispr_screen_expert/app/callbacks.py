@@ -130,7 +130,7 @@ def _build_dash_payload(result: AnalysisResult, counts_source: Path) -> Dict[str
         "pathways": pathway_fig,
         "summary_cards": summary_cards,
         "table_data": table_data,
-        "warnings": list(result.warnings),
+        "warnings": [warning.model_dump(mode="json") for warning in result.warnings],
         "runtime_seconds": result.summary.runtime_seconds,
         "run_dir": str(run_dir) if run_dir else None,
         "run_label": _format_timestamp(run_dir.name) if isinstance(run_dir, Path) else None,
@@ -237,11 +237,24 @@ def _error_outputs(message: str):
     )
 
 
-def _warnings_markup(warnings: List[str]) -> List[html.Div]:
+def _warning_text(warning: Any) -> str:
+    if hasattr(warning, "message"):
+        code = getattr(warning, "code", "")
+        prefix = f"[{code}] " if code else ""
+        return f"{prefix}{getattr(warning, 'message')}"
+    if isinstance(warning, dict):
+        code = warning.get("code")
+        message = warning.get("message") or warning.get("text") or ""
+        prefix = f"[{code}] " if code else ""
+        return f"{prefix}{message}"
+    return str(warning)
+
+
+def _warnings_markup(warnings: List[Any]) -> List[html.Div]:
     if not warnings:
         return []
     return [
-        dbc.Alert(warning, color="warning", className="mb-2 job-warning-alert")
+        dbc.Alert(_warning_text(warning), color="warning", className="mb-2 job-warning-alert")
         for warning in warnings
     ]
 

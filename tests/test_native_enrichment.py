@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 from scipy.stats import hypergeom
 
+from crispr_screen_expert.exceptions import DataContractError
 from crispr_screen_expert.models import PathwayResult
 from crispr_screen_expert.native import enrichment as native_enrichment
 from crispr_screen_expert.pipeline import DataPaths, PipelineSettings, run_analysis
@@ -90,10 +91,13 @@ def test_pipeline_native_enrichment_fallback(monkeypatch, tmp_path, experiment_c
         "run_enrichment_native",
         lambda *args, **kwargs: (_ for _ in ()).throw(ImportError("no backend")),
     )
-    monkeypatch.setattr(
-        "crispr_screen_expert.pipeline.run_enrichr",
-        lambda genes, libraries, cutoff: [],
-    )
+    fallback_calls = {"count": 0}
+
+    def _fake_enrichr(genes, libraries, cutoff):
+        fallback_calls["count"] += 1
+        return []
+
+    monkeypatch.setattr("crispr_screen_expert.pipeline.run_enrichr", _fake_enrichr)
 
     result = run_analysis(
         config=experiment_config,
@@ -111,4 +115,39 @@ def test_pipeline_native_enrichment_fallback(monkeypatch, tmp_path, experiment_c
         ),
     )
 
-    assert any("native enrichment" in warning.lower() for warning in result.warnings)
+    assert fallback_calls["count"] == 1
+    assert any(warning.code == "native_enrichment_backend_missing" for warning in result.warnings)
+
+
+def test_pipeline_native_enrichment_bad_library(monkeypatch, tmp_path, experiment_config):
+    monkeypatch.setattr(
+        native_enrichment,
+        "run_enrichment_native",
+        lambda *args, **kwargs: (_ for _ in ()).throw(DataContractError("library foo missing")),
+    )
+    fallback_calls = {"count": 0}
+
+    def _fake_enrichr(genes, libraries, cutoff):
+        fallback_calls["count"] += 1
+        return []
+
+    monkeypatch.setattr("crispr_screen_expert.pipeline.run_enrichr", _fake_enrichr)
+
+    result = run_analysis(
+        config=experiment_config,
+        paths=DataPaths(
+            counts=Path("sample_data/demo_counts.csv"),
+            library=Path("sample_data/demo_library.csv"),
+            metadata=Path("sample_data/demo_metadata.json"),
+        ),
+        settings=PipelineSettings(
+            use_mageck=False,
+            use_native_rra=False,
+            use_native_enrichment=True,
+            enrichr_libraries=["custom"],
+            output_root=tmp_path,
+        ),
+    )
+
+    assert fallback_calls["count"] == 1
+    assert any(warning.code == "native_enrichment_library_missing" for warning in result.warnings)

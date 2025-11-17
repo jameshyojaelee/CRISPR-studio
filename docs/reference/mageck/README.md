@@ -18,3 +18,18 @@ The optional second argument sets the FDR cutoff used in the diagnostic plots.
 
 These resources are not wired into the automated build; they are here purely as
 documentation for the original MAGeCK workflow.
+
+## Native Enrichment vs. Enrichr Sets
+
+CRISPR-studio ships a tiny set of curated “native” pathway libraries under
+`resources/enrichment/native_demo.json`. These are bundled purely for offline
+demos and are separate from the much larger Enrichr collections fetched via the
+Python fallback. When the pipeline runs with `--use-native-enrichment`, it first
+looks for those bundled libraries and, when present, uses the C++ backend for a
+fast hypergeometric test. If a requested native library is missing or the native
+backend cannot load, the pipeline records a structured warning (e.g.,
+`native_enrichment_library_missing` or `native_enrichment_backend_failed`) and
+automatically falls back to the Enrichr API so analyses continue without
+interruption. These warnings are also emitted in telemetry (`analysis_completed`
+/ `analysis_failed`) so dashboards can explain whether native resources were
+unavailable or if the backend crashed mid-run.

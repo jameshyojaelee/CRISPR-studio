@@ -15,6 +15,7 @@ from .models import (
     GuideRecord,
     NarrativeSnippet,
     PathwayResult,
+    PipelineWarning,
     QCMetric,
     ScoringMethod,
     ScreenType,
@@ -185,7 +186,7 @@ def merge_gene_results(
     pathway_results: Optional[List[PathwayResult]] = None,
     guide_lookup: Optional[Dict[str, List[GuideRecord]]] = None,
     artifacts: Optional[Dict[str, str]] = None,
-    warnings: Optional[List[str]] = None,
+    warnings: Optional[List[PipelineWarning]] = None,
 ) -> AnalysisResult:
     """Assemble all components into an AnalysisResult instance."""
     gene_results = dataframe_to_gene_results(

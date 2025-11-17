@@ -14,6 +14,7 @@ from crispr_screen_expert.models import (
     GeneResult,
     GuideRecord,
     NarrativeSnippet,
+    PipelineWarning,
     QCMetric,
     QCSeverity,
     SampleConfig,
@@ -79,7 +80,7 @@ def _build_sample_result(tmp_path: Path) -> AnalysisResult:
             "normalized_counts": str(counts_path),
             "analysis_result": str(analysis_result_path),
         },
-        warnings=["Example warning"],
+        warnings=[PipelineWarning(code="legacy_warning", message="Example warning")],
     )
 
 

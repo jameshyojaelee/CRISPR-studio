@@ -20,6 +20,7 @@ dist/
 logs/
 artifacts/
 .cache/
+prompts.md
 
 # Dash app artifacts
 .dash-debug.json

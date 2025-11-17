@@ -10,6 +10,7 @@ from typer.testing import CliRunner
 from crispr_screen_expert.cli import app
 from crispr_screen_expert.exceptions import QualityControlError
 from crispr_screen_expert.models import load_experiment_config
+from crispr_screen_expert.native import enrichment as native_enrichment
 from crispr_screen_expert.pipeline import DataPaths, PipelineSettings, run_analysis
 
 
@@ -131,3 +132,39 @@ def test_mageck_positive_direction_updates_significant_genes(tmp_path: Path, mon
 
     assert result.summary.significant_genes == 1
     assert any(gene.gene_symbol == "GENE_A" and gene.fdr == pytest.approx(0.01) for gene in result.gene_results)
+
+
+def test_native_enrichment_runtime_error_falls_back(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    config = load_experiment_config(Path("sample_data/demo_metadata.json"))
+
+    def _fail_native(*args, **kwargs):
+        raise RuntimeError("backend crashed")
+
+    fallback_calls = {"count": 0}
+
+    def _fake_enrichr(genes, libraries, cutoff):
+        fallback_calls["count"] += 1
+        return []
+
+    monkeypatch.setattr(native_enrichment, "run_enrichment_native", _fail_native)
+    monkeypatch.setattr("crispr_screen_expert.pipeline.run_enrichr", _fake_enrichr)
+
+    result = run_analysis(
+        config=config,
+        paths=DataPaths(
+            counts=Path("sample_data/demo_counts.csv"),
+            library=Path("sample_data/demo_library.csv"),
+            metadata=Path("sample_data/demo_metadata.json"),
+        ),
+        settings=PipelineSettings(
+            use_mageck=False,
+            use_native_rra=False,
+            use_native_enrichment=True,
+            enrichr_libraries=["native_demo"],
+            output_root=tmp_path,
+            cache_annotations=False,
+        ),
+    )
+
+    assert fallback_calls["count"] == 1
+    assert any(warning.code == "native_enrichment_backend_failed" for warning in result.warnings)

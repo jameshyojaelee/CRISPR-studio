@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from enum import Enum
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
@@ -215,6 +215,28 @@ class QCFlag(BaseModel):
     severity: QCSeverity = QCSeverity.INFO
 
 
+class PipelineWarning(BaseModel):
+    """Machine-readable warning surfaced by the analysis pipeline."""
+
+    code: str = Field(..., description="Identifier describing the warning type.")
+    message: str = Field(..., description="Human-friendly warning text.")
+    details: Dict[str, Any] = Field(default_factory=dict, description="Optional structured metadata for the UI.")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_legacy(cls, value: Any) -> Any:
+        """Support legacy warning payloads stored as plain strings."""
+        if isinstance(value, str):
+            return {"code": "legacy_warning", "message": value, "details": {}}
+        if isinstance(value, dict):
+            normalized = dict(value)
+            normalized.setdefault("code", normalized.get("type", "legacy_warning"))
+            normalized.setdefault("message", normalized.get("text", ""))
+            normalized.setdefault("details", normalized.get("details", {}))
+            return normalized
+        return value
+
+
 class NarrativeSnippet(BaseModel):
     """Narrative paragraph surfaced in reports or UI."""
 
@@ -247,7 +269,7 @@ class AnalysisResult(BaseModel):
     pathway_results: List[PathwayResult] = Field(default_factory=list)
     narratives: List[NarrativeSnippet] = Field(default_factory=list)
     artifacts: Dict[str, str] = Field(default_factory=dict, description="Named artefact paths.")
-    warnings: List[str] = Field(default_factory=list)
+    warnings: List[PipelineWarning] = Field(default_factory=list)
 
     def top_hits(self, limit: int = 20) -> List[GeneResult]:
         """Return top-ranked significant genes up to the specified limit."""

@@ -7,7 +7,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, NamedTuple, Optional
+from typing import Any, Dict, List, NamedTuple, Optional
 
 import pandas as pd
 
@@ -26,6 +26,7 @@ from .models import (
     ExperimentConfig,
     GuideRecord,
     NarrativeSnippet,
+    PipelineWarning,
     QCSeverity,
     ScoringMethod,
     ScreenType,
@@ -61,12 +62,23 @@ class PipelineSettings:
     use_native_enrichment: bool = False
 
 
+def _add_warning(
+    warnings: List[PipelineWarning],
+    code: str,
+    message: str,
+    *,
+    details: Optional[Dict[str, Any]] = None,
+) -> None:
+    """Append a structured warning to the shared list."""
+    warnings.append(PipelineWarning(code=code, message=message, details=details or {}))
+
+
 def _run_gene_scoring(
     log2fc: pd.Series,
     library: pd.DataFrame,
     *,
     use_native_rra: bool,
-    warnings: List[str],
+    warnings: List[PipelineWarning],
 ) -> pd.DataFrame:
     """Execute gene-level scoring using native RRA when requested."""
     if use_native_rra:
@@ -79,11 +91,20 @@ def _run_gene_scoring(
                 raise
             except Exception as exc:  # pragma: no cover - defensive path
                 message = f"Native RRA failed ({exc}); falling back to Python implementation."
-                warnings.append(message)
+                _add_warning(
+                    warnings,
+                    code="native_rra_failed",
+                    message=message,
+                    details={"error": str(exc)},
+                )
                 logger.warning(message)
         else:
             message = "Native RRA requested but backend not available; falling back to Python implementation."
-            warnings.append(message)
+            _add_warning(
+                warnings,
+                code="native_rra_unavailable",
+                message=message,
+            )
             logger.warning(message)
 
     return run_rra(log2fc, library)
@@ -235,6 +256,7 @@ def run_analysis(
     counts = load_counts(paths.counts)
     library = load_library(paths.library)
     metadata = config
+    warnings: List[PipelineWarning] = []
 
     qc_metrics = run_all_qc(
         counts,
@@ -251,6 +273,7 @@ def run_analysis(
                 "output_dir": str(output_dir),
                 "reason": "qc_failure",
                 "critical_metrics": failure_details,
+                "warnings": [],
             },
         )
         raise QualityControlError(
@@ -262,7 +285,6 @@ def run_analysis(
     log2fc = compute_log2_fold_change(counts_cpm, metadata)
     gene_df: Optional[pd.DataFrame] = None
     artifacts: Dict[str, str] = {}
-    warnings: List[str] = []
     raw_counts_path = output_dir / "raw_counts.csv"
     counts.to_csv(raw_counts_path, index_label="guide_id")
     artifacts["raw_counts"] = str(raw_counts_path)
@@ -277,14 +299,23 @@ def run_analysis(
             mageck_df = run_mageck(mageck_input_path, metadata, output_dir=output_dir)
         except MageckExecutionError as exc:
             logger.warning("MAGeCK execution failed: %s", exc)
-            warnings.append(f"MAGeCK execution failed ({exc}); falling back to RRA.")
+            _add_warning(
+                warnings,
+                code="mageck_failed",
+                message=f"MAGeCK execution failed ({exc}); falling back to RRA.",
+                details={"error": str(exc)},
+            )
             mageck_failed = True
             mageck_df = None
         if mageck_df is not None:
             gene_df = _normalize_mageck_output(mageck_df, metadata.screen_type)
             scoring_method_used = ScoringMethod.MAGECK
         elif not mageck_failed:
-            warnings.append("MAGeCK not available or failed; using RRA fallback.")
+            _add_warning(
+                warnings,
+                code="mageck_unavailable",
+                message="MAGeCK not available or failed; using RRA fallback.",
+            )
 
     if gene_df is None:
         gene_df = _run_gene_scoring(
@@ -324,18 +355,52 @@ def run_analysis(
                     fdr_threshold=metadata.analysis.fdr_threshold,
                 )
                 logger.info("Native enrichment backend executed for libraries: %s", settings.enrichr_libraries)
-            except DataContractError:
-                raise
+            except DataContractError as exc:
+                message = (
+                    "Native enrichment libraries unavailable; falling back to Enrichr results."
+                )
+                _add_warning(
+                    warnings,
+                    code="native_enrichment_library_missing",
+                    message=message,
+                    details={
+                        "libraries": list(settings.enrichr_libraries or []),
+                        "error": str(exc),
+                    },
+                )
+                logger.warning(
+                    "Native enrichment libraries %s unavailable: %s",
+                    settings.enrichr_libraries,
+                    exc,
+                )
             except ImportError as exc:
                 message = (
                     "Native enrichment requested but backend unavailable; falling back to Python implementation."
                 )
-                warnings.append(message)
-                logger.warning("Native enrichment unavailable: %s", exc)
+                _add_warning(
+                    warnings,
+                    code="native_enrichment_backend_missing",
+                    message=message,
+                    details={"error": str(exc)},
+                )
+                logger.warning(
+                    "Native enrichment backend missing for libraries %s: %s",
+                    settings.enrichr_libraries,
+                    exc,
+                )
             except Exception as exc:  # pragma: no cover - defensive path
                 message = f"Native enrichment failed ({exc}); falling back to Python implementation."
-                warnings.append(message)
-                logger.warning(message)
+                _add_warning(
+                    warnings,
+                    code="native_enrichment_backend_failed",
+                    message=message,
+                    details={"error": str(exc)},
+                )
+                logger.warning(
+                    "Native enrichment backend crashed for libraries %s: %s",
+                    settings.enrichr_libraries,
+                    exc,
+                )
         if not enrichment_results:
             enrichment_results = run_enrichr(
                 significant_genes,
@@ -347,7 +412,12 @@ def run_analysis(
     if settings.cache_annotations:
         genes = gene_df["gene"].tolist() if "gene" in gene_df.columns else gene_df["gene_symbol"].tolist()
         annotation_data, fetch_warnings = fetch_gene_annotations(genes)
-        warnings.extend(fetch_warnings)
+        for warning_text in fetch_warnings:
+            _add_warning(
+                warnings,
+                code="annotations_warning",
+                message=warning_text,
+            )
         annotations_path = output_dir / "gene_annotations.json"
         annotations_path.write_text(json.dumps(annotation_data, indent=2))
         artifacts["gene_annotations"] = str(annotations_path)
@@ -387,6 +457,7 @@ def run_analysis(
     result_path.write_text(json.dumps(analysis_result.model_dump(mode="json"), indent=2))
     artifacts["analysis_result"] = str(result_path)
     analysis_result.artifacts = artifacts
+    warning_payload = [warning.model_dump(mode="json") for warning in warnings]
 
     log_event(
         "analysis_completed",
@@ -394,6 +465,7 @@ def run_analysis(
             "output_dir": str(output_dir),
             "runtime_seconds": round(runtime, 2),
             "significant_genes": analysis_result.summary.significant_genes,
+            "warnings": warning_payload,
         },
     )
 

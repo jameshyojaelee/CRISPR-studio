@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, validator
 
 from .background import JobManager
 from .config import get_settings
-from .models import AnalysisResult, load_experiment_config
+from .models import AnalysisResult, PipelineWarning, load_experiment_config
 from .pipeline import DataPaths, PipelineSettings, run_analysis
 
 
@@ -40,7 +40,7 @@ class StatusResponse(BaseModel):
     job_id: str
     status: str
     summary: Optional[Dict] = None
-    warnings: Optional[list[str]] = None
+    warnings: Optional[list[PipelineWarning]] = None
     error: Optional[str] = None
 
 
@@ -58,7 +58,7 @@ class APIConfig:
     def record_success(self, job_id: str, result: AnalysisResult) -> None:
         self.results[job_id] = {
             "result": result.model_dump(mode="json"),
-            "warnings": result.warnings,
+            "warnings": [warning.model_dump(mode="json") for warning in result.warnings],
         }
 
     def record_failure(self, job_id: str, error: BaseException) -> None:

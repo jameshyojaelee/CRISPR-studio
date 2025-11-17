@@ -61,7 +61,7 @@ def test_pipeline_native_flag_fallback(monkeypatch, tmp_path, experiment_config)
         settings=PipelineSettings(use_mageck=False, use_native_rra=True, output_root=tmp_path, enrichr_libraries=[]),
     )
 
-    assert any("native rra" in warning.lower() for warning in result.warnings)
+    assert any(warning.code == "native_rra_unavailable" for warning in result.warnings)
 
 
 def test_pipeline_uses_native_backend(monkeypatch, tmp_path, experiment_config):
@@ -97,4 +97,4 @@ def test_pipeline_uses_native_backend(monkeypatch, tmp_path, experiment_config):
     )
 
     assert any(gene.gene_symbol == "FAKE1" for gene in result.gene_results)
-    assert not any("native rra" in warning.lower() for warning in result.warnings)
+    assert not any(warning.code.startswith("native_rra") for warning in result.warnings)

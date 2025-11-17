@@ -13,6 +13,7 @@ from crispr_screen_expert.models import (
     GeneResult,
     GuideRecord,
     NarrativeSnippet,
+    PipelineWarning,
     SampleConfig,
     ScoringMethod,
     ScreenType,
@@ -80,7 +81,7 @@ def test_history_panel_and_gene_modal(dash_duo, tmp_path, monkeypatch):
         qc_flags=[],
         narratives=[NarrativeSnippet(title="Summary", body="Test", source="system")],
         artifacts={},
-        warnings=["Example warning"],
+        warnings=[PipelineWarning(code="legacy_warning", message="Example warning")],
     )
 
     gene_results_path = run_dir / "gene_results.csv"

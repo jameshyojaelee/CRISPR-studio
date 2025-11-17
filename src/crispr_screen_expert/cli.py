@@ -21,6 +21,20 @@ logger = get_logger(__name__)
 APP_SETTINGS = get_settings()
 
 
+def _warning_to_text(warning: object) -> str:
+    """Render pipeline warnings regardless of whether they are structured or legacy strings."""
+    if hasattr(warning, "message"):
+        code = getattr(warning, "code", "")
+        prefix = f"[{code}] " if code else ""
+        return f"{prefix}{getattr(warning, 'message')}"
+    if isinstance(warning, dict):
+        code = warning.get("code")
+        message = warning.get("message") or warning.get("text") or ""
+        prefix = f"[{code}] " if code else ""
+        return f"{prefix}{message}"
+    return str(warning)
+
+
 def _resolve_path(path: Path) -> Path:
     path = path.expanduser().resolve()
     if not path.exists():
@@ -133,7 +147,7 @@ def run_pipeline(
     if result.warnings:
         typer.secho("Warnings:", fg=typer.colors.YELLOW)
         for warning in result.warnings:
-            typer.echo(f"  - {warning}")
+            typer.echo(f"  - {_warning_to_text(warning)}")
 
 
 @app.command("list-artifacts")

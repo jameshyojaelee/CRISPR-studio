@@ -1,21 +1,4 @@
 
-### Prompt 2: Graceful Native Enrichment Fallback with Telemetry
-You own `src/crispr_screen_expert/pipeline.py` and `src/crispr_screen_expert/native/enrichment.py`. Make native enrichment truly optional:
-1. Catch `DataContractError` from `native_enrichment.run_enrichment_native`, log it with library names, and fall back to `run_enrichr` automatically. Reserve hard failures for genuine input issues (e.g., empty significant gene lists already handled earlier).
-2. Emit structured warnings in the pipeline result so downstream UIs can surface “native library missing” vs “native backend crashed.” Include these warnings in the log_event payload for `analysis_failed`/`analysis_completed`.
-3. Extend tests (`tests/test_native_enrichment.py` and `tests/test_pipeline_reliability.py`) to cover scenarios where unsupported library names are supplied or the native backend raises runtime errors.
-4. Document the workflow in `docs/reference/mageck/README.md` (or add a new section) explaining how bundled native libraries differ from Enrichr sets and how the fallback works.
-Acceptance: turning on `--use-native-enrichment` never aborts an analysis solely because the native set is unavailable; warnings clearly cite the root cause and appear in tests.
-
-### Prompt 3: Dash App Pipeline Settings Parity
-Bring the Dash UI (`src/crispr_screen_expert/app/callbacks.py` + layout components) to parity with the CLI/API:
-1. Add UI controls for MAGeCK toggle, native RRA/enrichment toggles, Enrichr library selection, and “skip annotations.” Persist selections in `dcc.Store` state.
-2. Thread those settings into `_run_pipeline_job` by constructing `PipelineSettings` that mirror the CLI defaults. Ensure environment overrides (`CRISPR_STUDIO_FORCE_PYTHON`, etc.) still apply.
-3. Display the active settings in the job status overlay and store completed run metadata so history cards show which backend produced each artifact.
-4. Write Cypress-style Dash tests (`tests/test_dash_integration.py`) that flip these toggles and confirm the pipeline receives them (mock `run_analysis`).
-5. Update CSS/UX as needed so the new controls fit the upload tab without breaking responsiveness.
-Acceptance: users can choose the same execution paths in the UI as via CLI, and tests assert the settings are honored.
-
 ### Prompt 4: JobManager Lifecycle & Observability Upgrade
 Improve `src/crispr_screen_expert/background.py`-based job handling for both Dash and FastAPI surfaces:
 1. Track job metadata (submitted, started, finished timestamps, exception info) in a dedicated dataclass. Remove finished/failed futures from `_jobs` to prevent unbounded growth; keep a capped history (e.g., last 50 jobs) for status queries.
