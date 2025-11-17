@@ -7,6 +7,7 @@ from dash import dash_table, dcc, html
 from dash.development.base_component import Component
 
 from . import ids
+from .constants import DEFAULT_PIPELINE_SETTINGS, ENRICHR_LIBRARY_OPTIONS
 
 
 def build_layout() -> Component:
@@ -18,6 +19,7 @@ def build_layout() -> Component:
             dcc.Store(id=ids.STORE_JOB),
             dcc.Store(id=ids.STORE_SELECTED_GENE),
             dcc.Store(id=ids.STORE_HISTORY),
+            dcc.Store(id=ids.STORE_PIPELINE_SETTINGS, data=DEFAULT_PIPELINE_SETTINGS),
             dcc.Interval(id=ids.INTERVAL_JOB, interval=2000, n_intervals=0, disabled=True),
             dcc.Interval(id=ids.INTERVAL_HISTORY, interval=20000, n_intervals=0, disabled=False),
             dcc.Download(id=ids.DOWNLOAD_GENE),
@@ -126,6 +128,7 @@ def _upload_tab() -> Component:
                             _upload_zone(ids.UPLOAD_LIBRARY, "Library annotation (.csv / .tsv)"),
                             _upload_zone(ids.UPLOAD_METADATA, "Metadata (.json)"),
                             html.Div(id=ids.UPLOAD_STATUS, className="mt-3 upload-status"),
+                            _pipeline_settings_panel(),
                             dbc.Button(
                                 "Run Analysis",
                                 id=ids.BUTTON_RUN_ANALYSIS,
@@ -379,6 +382,69 @@ def _upload_zone(component_id: str, label: str) -> Component:
     )
 
 
+def _pipeline_settings_panel() -> Component:
+    return html.Div(
+        [
+            html.Div(
+                [
+                    html.Div("Execution backends", className="pipeline-settings-label"),
+                    html.Div(
+                        [
+                            _pipeline_switch(ids.SWITCH_USE_MAGECK, "Enable MAGeCK scoring", DEFAULT_PIPELINE_SETTINGS["use_mageck"]),
+                            _pipeline_switch(ids.SWITCH_NATIVE_RRA, "Use native RRA backend", DEFAULT_PIPELINE_SETTINGS["use_native_rra"]),
+                            _pipeline_switch(ids.SWITCH_NATIVE_ENRICHMENT, "Use native enrichment backend", DEFAULT_PIPELINE_SETTINGS["use_native_enrichment"]),
+                        ],
+                        className="pipeline-switch-grid",
+                    ),
+                ],
+                className="pipeline-settings-block",
+            ),
+            html.Div(
+                [
+                    html.Div("Enrichr libraries", className="pipeline-settings-label"),
+                    dcc.Dropdown(
+                        id=ids.DROPDOWN_ENRICHR,
+                        options=ENRICHR_LIBRARY_OPTIONS,
+                        multi=True,
+                        placeholder="Select optional libraries…",
+                        value=DEFAULT_PIPELINE_SETTINGS["enrichr_libraries"],
+                        className="pipeline-dropdown",
+                        persistence=True,
+                        persistence_type="session",
+                    ),
+                    html.Small(
+                        "Leave empty to skip enrichment or supply the native library name when using the accelerated backend.",
+                        className="pipeline-settings-hint",
+                    ),
+                ],
+                className="pipeline-settings-block",
+            ),
+            html.Div(
+                [
+                    _pipeline_switch(
+                        ids.SWITCH_SKIP_ANNOTATIONS,
+                        "Skip gene annotations (offline mode)",
+                        DEFAULT_PIPELINE_SETTINGS["skip_annotations"],
+                    ),
+                ],
+                className="pipeline-settings-block",
+            ),
+        ],
+        className="pipeline-settings-panel mt-4",
+    )
+
+
+def _pipeline_switch(component_id: str, label: str, value: bool) -> Component:
+    return dbc.Switch(
+        id=component_id,
+        label=label,
+        value=value,
+        className="pipeline-switch",
+        persistence=True,
+        persistence_type="session",
+    )
+
+
 def _history_sidebar() -> Component:
     return dbc.Card(
         dbc.CardBody(
@@ -426,6 +492,13 @@ def _job_status_overlay() -> Component:
                             ),
                         ],
                         className="d-flex align-items-center gap-3",
+                    ),
+                    html.Div(
+                        [
+                            html.Small("Active settings", className="job-status-settings-label"),
+                            html.Div(id=ids.JOB_STATUS_SETTINGS, className="job-status-settings"),
+                        ],
+                        className="job-status-settings-block",
                     ),
                     html.Div(id=ids.JOB_STATUS_WARNINGS, className="job-status-warnings"),
                 ],

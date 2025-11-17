@@ -8,8 +8,9 @@ import threading
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 import time
+import hashlib
 
 import dash
 import dash_bootstrap_components as dbc
@@ -30,6 +31,7 @@ from ..visualization import (
     volcano_plot,
 )
 from . import ids
+from .constants import DEFAULT_PIPELINE_SETTINGS
 
 SETTINGS = get_settings()
 UPLOAD_DIR = SETTINGS.uploads_dir
@@ -38,6 +40,121 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 JOB_MANAGER = JobManager(max_workers=2)
 RESULT_CACHE: Dict[str, Dict[str, Any]] = {}
 CACHE_LOCK = threading.Lock()
+
+
+def _coerce_bool(value: Any, default: bool) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"1", "true", "yes", "on"}:
+            return True
+        if lowered in {"0", "false", "no", "off"}:
+            return False
+    if value is None:
+        return default
+    return bool(value)
+
+
+def _normalise_settings_data(data: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    settings = dict(DEFAULT_PIPELINE_SETTINGS)
+    if not data:
+        return settings
+
+    settings["use_mageck"] = _coerce_bool(data.get("use_mageck"), settings["use_mageck"])
+    settings["use_native_rra"] = _coerce_bool(data.get("use_native_rra"), settings["use_native_rra"])
+    settings["use_native_enrichment"] = _coerce_bool(
+        data.get("use_native_enrichment"),
+        settings["use_native_enrichment"],
+    )
+    libraries = data.get("enrichr_libraries") or []
+    if isinstance(libraries, str):
+        libraries = [item.strip() for item in libraries.split(",") if item.strip()]
+    else:
+        libraries = [str(item) for item in libraries if item]
+    settings["enrichr_libraries"] = libraries
+
+    if "skip_annotations" in data:
+        settings["skip_annotations"] = _coerce_bool(data["skip_annotations"], settings["skip_annotations"])
+    elif "cache_annotations" in data:
+        cache_annotations = _coerce_bool(data["cache_annotations"], True)
+        settings["skip_annotations"] = not cache_annotations
+
+    return settings
+
+
+def _settings_fingerprint(settings: Dict[str, Any]) -> str:
+    payload = json.dumps(settings, sort_keys=True).encode("utf-8")
+    return hashlib.sha1(payload).hexdigest()
+
+
+def _settings_snapshot(actual: PipelineSettings, requested: Dict[str, Any]) -> Dict[str, Any]:
+    snapshot = {
+        "use_mageck": actual.use_mageck,
+        "use_native_rra": actual.use_native_rra,
+        "use_native_enrichment": actual.use_native_enrichment,
+        "enrichr_libraries": list(actual.enrichr_libraries or []),
+        "skip_annotations": not actual.cache_annotations,
+    }
+    if not snapshot["enrichr_libraries"] and requested.get("enrichr_libraries"):
+        snapshot["enrichr_libraries"] = list(requested["enrichr_libraries"])
+    return snapshot
+
+
+def _settings_badges(settings: Optional[Dict[str, Any]]) -> html.Div:
+    payload = settings or DEFAULT_PIPELINE_SETTINGS
+    libraries = payload.get("enrichr_libraries") or []
+
+    badges = [
+        dbc.Badge(
+            "MAGeCK" if payload.get("use_mageck") else "RRA only",
+            className="job-settings-badge",
+        ),
+        dbc.Badge(
+            "Native RRA" if payload.get("use_native_rra") else "Python RRA",
+            className="job-settings-badge",
+        ),
+        dbc.Badge(
+            "Native enrichment"
+            if payload.get("use_native_enrichment")
+            else ("Enrichr" if libraries else "Enrichment off"),
+            className="job-settings-badge",
+        ),
+        dbc.Badge(
+            "Skip annotations" if payload.get("skip_annotations") else "Annotations on",
+            className="job-settings-badge",
+        ),
+    ]
+    if libraries:
+        preview = ", ".join(libraries[:2])
+        if len(libraries) > 2:
+            preview += "…"
+        badges.append(
+            dbc.Badge(f"Libraries: {preview}", className="job-settings-badge subtle"),
+        )
+    return html.Div(badges, className="job-settings-pill-row")
+
+
+def _load_run_settings(run_dir: Path) -> Optional[Dict[str, Any]]:
+    settings_path = run_dir / "pipeline_settings.json"
+    if not settings_path.exists():
+        return None
+    try:
+        payload = json.loads(settings_path.read_text())
+    except Exception:
+        return None
+    return _normalise_settings_data(payload)
+
+
+def _build_pipeline_settings(settings_data: Dict[str, Any]) -> PipelineSettings:
+    libraries = list(settings_data.get("enrichr_libraries") or [])
+    return PipelineSettings(
+        use_mageck=settings_data.get("use_mageck", True),
+        use_native_rra=settings_data.get("use_native_rra", False),
+        use_native_enrichment=settings_data.get("use_native_enrichment", False),
+        enrichr_libraries=libraries or None,
+        cache_annotations=not settings_data.get("skip_annotations", False),
+    )
 
 
 def _format_timestamp(run_name: str) -> str:
@@ -164,6 +281,9 @@ def _list_recent_runs(limit: int = 5) -> List[Dict[str, Any]]:
             "warnings": data.get("warnings", []),
             "label": f"{config.get('experiment_name', 'Untitled')} — {_format_timestamp(run_dir.name)}",
         }
+        settings = _load_run_settings(run_dir)
+        if settings:
+            run_info["settings"] = settings
         runs.append(run_info)
         if len(runs) >= limit:
             break
@@ -187,10 +307,13 @@ def _build_history_item(run: Dict[str, Any]) -> dbc.ListGroupItem:
         else None
     )
 
+    settings_markup = _settings_badges(run.get("settings"))
+
     return dbc.ListGroupItem(
         [
             html.Div(run["label"], className="history-item-title"),
             html.Small(" • ".join(subtitle_parts), className="history-item-subtitle"),
+            settings_markup,
             warning_badge,
         ],
         action=True,
@@ -294,30 +417,42 @@ def _summary_card(title: str, value: Any) -> dbc.Card:
     )
 
 
-def _dataset_key(*paths: Path) -> str:
+def _dataset_key(*paths: Path, settings_fingerprint: Optional[str] = None) -> str:
     parts = []
     for path in paths:
         stat = path.stat()
         parts.append(f"{path.resolve()}:{stat.st_mtime_ns}:{stat.st_size}")
+    if settings_fingerprint:
+        parts.append(settings_fingerprint)
     return "|".join(parts)
 
 
-def _run_pipeline_job(counts_path: Path, library_path: Path, metadata_path: Path) -> Dict[str, Any]:
-    cache_key = _dataset_key(counts_path, library_path, metadata_path)
+def _run_pipeline_job(
+    counts_path: Path,
+    library_path: Path,
+    metadata_path: Path,
+    settings_payload: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    normalized_settings = _normalise_settings_data(settings_payload)
+    fingerprint = _settings_fingerprint(normalized_settings)
+    cache_key = _dataset_key(counts_path, library_path, metadata_path, settings_fingerprint=fingerprint)
     with CACHE_LOCK:
         cached = RESULT_CACHE.get(cache_key)
     if cached:
         return cached
 
     config = load_experiment_config(metadata_path)
+    pipeline_settings = _build_pipeline_settings(normalized_settings)
     result = run_analysis(
         config=config,
         paths=DataPaths(counts=counts_path, library=library_path, metadata=metadata_path),
-        settings=PipelineSettings(use_mageck=False),
+        settings=pipeline_settings,
     )
     raw_counts = Path(result.artifacts.get("raw_counts", ""))
     counts_source = raw_counts if raw_counts.exists() else counts_path
     payload = _build_dash_payload(result, counts_source)
+    snapshot = _settings_snapshot(pipeline_settings, normalized_settings)
+    payload["settings"] = snapshot
     with CACHE_LOCK:
         RESULT_CACHE[cache_key] = payload
     return payload
@@ -369,13 +504,33 @@ def register_callbacks(app: Dash) -> None:
         return data, status_children, config_panel
 
     @app.callback(
+        Output(ids.STORE_PIPELINE_SETTINGS, "data"),
+        Input(ids.SWITCH_USE_MAGECK, "value"),
+        Input(ids.SWITCH_NATIVE_RRA, "value"),
+        Input(ids.SWITCH_NATIVE_ENRICHMENT, "value"),
+        Input(ids.SWITCH_SKIP_ANNOTATIONS, "value"),
+        Input(ids.DROPDOWN_ENRICHR, "value"),
+        State(ids.STORE_PIPELINE_SETTINGS, "data"),
+    )
+    def sync_pipeline_settings(use_mageck, native_rra, native_enrichment, skip_annotations, libraries, current_store):
+        store = _normalise_settings_data(current_store)
+        store["use_mageck"] = bool(use_mageck)
+        store["use_native_rra"] = bool(native_rra)
+        store["use_native_enrichment"] = bool(native_enrichment)
+        store["skip_annotations"] = bool(skip_annotations)
+        library_values = libraries or []
+        store["enrichr_libraries"] = [value for value in library_values if value]
+        return store
+
+    @app.callback(
         Output(ids.STORE_JOB, "data"),
         Output(ids.INTERVAL_JOB, "disabled"),
         Input(ids.BUTTON_RUN_ANALYSIS, "n_clicks"),
         State(ids.STORE_CONFIG, "data"),
+        State(ids.STORE_PIPELINE_SETTINGS, "data"),
         prevent_initial_call=True,
     )
-    def start_pipeline_job(n_clicks, config_store):
+    def start_pipeline_job(n_clicks, config_store, settings_store):
         if not config_store:
             raise dash.exceptions.PreventUpdate
 
@@ -385,11 +540,19 @@ def register_callbacks(app: Dash) -> None:
         if not (counts_path.exists() and library_path.exists() and metadata_path.exists()):
             raise dash.exceptions.PreventUpdate
 
-        job_id = JOB_MANAGER.submit(_run_pipeline_job, counts_path, library_path, metadata_path)
+        settings_data = _normalise_settings_data(settings_store)
+        job_id = JOB_MANAGER.submit(
+            _run_pipeline_job,
+            counts_path,
+            library_path,
+            metadata_path,
+            settings_data,
+        )
         job_data = {
             "job_id": job_id,
             "status": "queued",
             "submitted": time.time(),
+            "settings": settings_data,
         }
         return job_data, False
 
@@ -406,6 +569,7 @@ def register_callbacks(app: Dash) -> None:
         Output(ids.JOB_STATUS_TEXT, "children"),
         Output(ids.JOB_STATUS_RUNTIME, "children"),
         Output(ids.JOB_STATUS_WARNINGS, "children"),
+        Output(ids.JOB_STATUS_SETTINGS, "children"),
         Output(ids.JOB_STATUS_OVERLAY, "className"),
         Input(ids.INTERVAL_JOB, "n_intervals"),
         Input(ids.JOB_STATUS_DISMISS, "n_clicks"),
@@ -428,6 +592,7 @@ def register_callbacks(app: Dash) -> None:
                 "",
                 "",
                 [],
+                [],
                 overlay_hidden,
             )
 
@@ -438,6 +603,7 @@ def register_callbacks(app: Dash) -> None:
         job_id = job_data.get("job_id")
         status = JOB_MANAGER.status(job_id)
         now = time.time()
+        settings_markup = _settings_badges(job_data.get("settings"))
 
         if status == "queued":
             job_data.setdefault("submitted", now)
@@ -449,6 +615,7 @@ def register_callbacks(app: Dash) -> None:
                 "Queued for execution…",
                 "",
                 [],
+                settings_markup,
                 "job-status-overlay",
             )
 
@@ -465,6 +632,7 @@ def register_callbacks(app: Dash) -> None:
                 "Running analysis…",
                 runtime_text,
                 [],
+                settings_markup,
                 "job-status-overlay",
             )
 
@@ -472,7 +640,11 @@ def register_callbacks(app: Dash) -> None:
             exception = JOB_MANAGER.exception(job_id)
             warning = f"Analysis job failed: {exception}" if exception else "Analysis job failed."
             graph_outputs = _error_outputs(warning)
-            job_data = {"status": "failed", "message": warning}
+            job_data = {
+                "status": "failed",
+                "message": warning,
+                "settings": job_store.get("settings"),
+            }
             return (
                 *graph_outputs,
                 job_data,
@@ -480,6 +652,7 @@ def register_callbacks(app: Dash) -> None:
                 "Analysis failed",
                 "",
                 _warnings_markup([warning]),
+                _settings_badges(job_store.get("settings")),
                 "job-status-overlay",
             )
 
@@ -490,12 +663,14 @@ def register_callbacks(app: Dash) -> None:
             if runtime_seconds is None and job_data.get("started"):
                 runtime_seconds = now - job_data["started"]
             runtime_text = f"Runtime: {runtime_seconds:.1f}s" if runtime_seconds is not None else ""
+            job_settings = payload.get("settings", job_data.get("settings"))
             job_data = {
                 "status": "completed",
                 "job_id": None,
                 "completed": now,
                 "warnings": payload.get("warnings", []),
                 "runtime": runtime_seconds,
+                "settings": job_settings,
             }
             status_text = "Analysis complete"
             return (
@@ -505,6 +680,7 @@ def register_callbacks(app: Dash) -> None:
                 status_text,
                 runtime_text,
                 _warnings_markup(payload.get("warnings", [])),
+                _settings_badges(job_settings),
                 "job-status-overlay",
             )
 
@@ -543,6 +719,7 @@ def register_callbacks(app: Dash) -> None:
         Output(ids.JOB_STATUS_TEXT, "children", allow_duplicate=True),
         Output(ids.JOB_STATUS_RUNTIME, "children", allow_duplicate=True),
         Output(ids.JOB_STATUS_WARNINGS, "children", allow_duplicate=True),
+        Output(ids.JOB_STATUS_SETTINGS, "children", allow_duplicate=True),
         Output(ids.JOB_STATUS_OVERLAY, "className", allow_duplicate=True),
         Input({"type": ids.RUN_HISTORY_ITEM, "run_id": ALL}, "n_clicks"),
         State(ids.STORE_HISTORY, "data"),
@@ -566,7 +743,7 @@ def register_callbacks(app: Dash) -> None:
 
         payload = _load_run_payload(Path(run_info["path"]))
         graph_outputs = _payload_to_outputs(payload)
-        job_data = {"status": "history", "job_id": None}
+        job_data = {"status": "history", "job_id": None, "settings": run_info.get("settings")}
         return (
             *graph_outputs,
             job_data,
@@ -574,6 +751,7 @@ def register_callbacks(app: Dash) -> None:
             "",
             "",
             [],
+            _settings_badges(run_info.get("settings")),
             "job-status-overlay hidden",
         )
 

@@ -199,6 +199,10 @@ body {
   color: var(--neutral-400);
 }
 
+.history-item .job-settings-pill-row {
+  margin-top: 0.4rem;
+}
+
 .history-item-warning-badge {
   margin-top: 0.4rem;
 }
@@ -248,6 +252,39 @@ body {
 
 .job-warning-alert {
   margin-bottom: 0.5rem;
+}
+
+.job-status-settings-block {
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0.75rem 1.25rem;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.job-status-settings-label {
+  color: var(--neutral-700);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.job-settings-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.job-settings-badge {
+  background: rgba(127, 90, 240, 0.2) !important;
+  border: 1px solid rgba(127, 90, 240, 0.4);
+  font-size: 0.7rem;
+}
+
+.job-settings-badge.subtle {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 .gene-modal-content {
@@ -451,6 +488,51 @@ body {
 .upload-status {
   color: var(--neutral-400);
   min-height: 2rem;
+}
+
+.pipeline-settings-panel {
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(127, 90, 240, 0.05);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.pipeline-settings-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pipeline-settings-label {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--neutral-700);
+}
+
+.pipeline-switch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.pipeline-switch .form-check-label {
+  font-weight: 500;
+}
+
+.pipeline-dropdown .Select-control,
+.pipeline-dropdown .Select-menu-outer {
+  background: rgba(4, 7, 12, 0.75);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--neutral-100);
+}
+
+.pipeline-settings-hint {
+  font-size: 0.8rem;
+  color: var(--neutral-700);
 }
 
 .modal-body-dark {

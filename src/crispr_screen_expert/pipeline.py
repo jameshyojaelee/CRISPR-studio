@@ -453,6 +453,18 @@ def run_analysis(
     )
     analysis_result.narratives = generate_narrative(analysis_result, narrative_settings)
 
+    settings_snapshot = {
+        "use_mageck": settings.use_mageck,
+        "use_native_rra": settings.use_native_rra,
+        "use_native_enrichment": settings.use_native_enrichment,
+        "enrichr_libraries": list(settings.enrichr_libraries or []),
+        "cache_annotations": settings.cache_annotations,
+        "skip_annotations": not settings.cache_annotations,
+    }
+    pipeline_settings_path = output_dir / "pipeline_settings.json"
+    pipeline_settings_path.write_text(json.dumps(settings_snapshot, indent=2))
+    artifacts["pipeline_settings"] = str(pipeline_settings_path)
+
     result_path = output_dir / "analysis_result.json"
     result_path.write_text(json.dumps(analysis_result.model_dump(mode="json"), indent=2))
     artifacts["analysis_result"] = str(result_path)
