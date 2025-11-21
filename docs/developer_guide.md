@@ -48,6 +48,8 @@ Core modules:
   - CLI: `crispr-studio serve-api --host 0.0.0.0 --port 8000`
   - Uvicorn entrypoint: `python app_api.py`
   - Docker Compose service: `docker-compose up api`
+  - Scripted client: `python examples/api_client.py --host http://127.0.0.1:8000` (uses `sample_data/` and skips annotations by default).
+  - cURL template: `curl -X POST "$HOST/v1/analysis" -H "Content-Type: application/json" -d '{"counts_path":"sample_data/demo_counts.csv","library_path":"sample_data/demo_library.csv","metadata_path":"sample_data/demo_metadata.json","use_mageck":false,"skip_annotations":true}'`
 - `scripts/export_openapi.py` emits `artifacts/api_schema.json` for documentation portals or client generation.
 
 ## Native Accelerators
@@ -101,6 +103,12 @@ Core modules:
 - Unit tests should cover success + failure paths (e.g., contract violations).
 - Integration tests (`tests/test_pipeline_demo.py`) run the full pipeline on the synthetic dataset; ensure they remain fast (<5 s).
 - Run `pytest --cov=crispr_screen_expert` before submitting changes.
+
+## Notebook Onboarding
+
+- The Colab-ready notebook lives at `notebooks/quickstart.ipynb` (open via the badge in the README).
+- It validates `sample_data/` and runs the pipeline with `use_mageck=False` and `cache_annotations=False` to stay offline friendly.
+- Update `DATA_DIR` and the paths in the setup cell to point at your own counts, library, and metadata files when experimenting locally.
 
 ## Benchmark Script
 

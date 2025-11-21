@@ -11,19 +11,31 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "crispr_screen_expert"
-version = "0.2.0"
+version = "0.3.0"
 description = "CRISPR-studio core package for pooled CRISPR screen analysis and reporting."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT License" }
+license = { file = "LICENSE" }
 authors = [
   { name = "CRISPR-studio Team" }
 ]
 classifiers = [
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
   "License :: OSI Approved :: MIT License",
   "Intended Audience :: Science/Research",
   "Topic :: Scientific/Engineering :: Bio-Informatics"
+]
+keywords = [
+  "crispr",
+  "mageck",
+  "gene-editing",
+  "dash",
+  "fastapi",
+  "bioinformatics",
 ]
 dependencies = [
   "pandas",
@@ -50,6 +62,8 @@ dev = [
   "pytest",
   "pytest-cov",
   "dash[testing]",
+  "nbconvert",
+  "nbformat",
   "ruff",
   "mypy",
   "types-requests",
@@ -79,12 +93,20 @@ reports = [
   "kaleido>=0.2.1",
   "weasyprint"
 ]
+[project.urls]
+Homepage = "https://github.com/jameshyojaelee/CRISPR-studio"
+Repository = "https://github.com/jameshyojaelee/CRISPR-studio"
+Issues = "https://github.com/jameshyojaelee/CRISPR-studio/issues"
+Documentation = "https://github.com/jameshyojaelee/CRISPR-studio#readme"
 
 [project.scripts]
 crispr-studio = "crispr_screen_expert.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools]
+license-files = ["LICENSE"]
 
 [tool.maturin]
 manifest-path = "rust/Cargo.toml"

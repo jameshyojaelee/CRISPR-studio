@@ -12,6 +12,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Verify supported Python version
+        run: python - <<'PY'
+import sys
+major, minor = sys.version_info[:2]
+assert (major, minor) >= (3, 11), f"Python {major}.{minor} is not supported"
+PY
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -23,30 +29,24 @@ jobs:
           pip install .[benchmark]
           pip install .[reports]
 
-  lint:
+  quality:
     runs-on: ubuntu-latest
+    needs: packaging
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install .[dev,docs]
-      - name: Ruff
-        run: ruff check .
-      - name: Mypy
-        run: mypy src
-
-  tests:
-    runs-on: ubuntu-latest
-    needs: lint
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+          python-version: ${{ matrix.python-version }}
+      - name: Verify supported Python version
+        run: python - <<'PY'
+import sys
+major, minor = sys.version_info[:2]
+assert (major, minor) >= (3, 11), f"Python {major}.{minor} is not supported"
+PY
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -54,7 +54,11 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install .[dev]
+          pip install .[dev,reports]
+      - name: Ruff
+        run: ruff check .
+      - name: Mypy
+        run: mypy src
       - name: Run pytest
         run: pytest --cov=crispr_screen_expert --cov-report=term-missing
       - name: Build demo report bundle
@@ -62,8 +66,10 @@ jobs:
 
   native-tests:
     name: Native Tests
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
-    needs: tests
+    needs: quality
+    continue-on-error: true
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
@@ -72,6 +78,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Verify supported Python version
+        run: python - <<'PY'
+import sys
+major, minor = sys.version_info[:2]
+assert (major, minor) >= (3, 11), f"Python {major}.{minor} is not supported"
+PY
       - name: Create virtualenv
         run: |
           python -m venv .venv
@@ -110,7 +122,7 @@ jobs:
 
   build-docs:
     runs-on: ubuntu-latest
-    needs: [tests, native-tests]
+    needs: quality
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

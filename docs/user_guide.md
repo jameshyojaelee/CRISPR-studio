@@ -2,10 +2,10 @@
 
 ## Installation
 
-1. Ensure Python 3.11 is available (`module load Python/3.11.5-GCCcore-13.2.0` on the HPC environment).
+1. Ensure Python 3.11+ is available (`module load Python/3.11.5-GCCcore-13.2.0` on the HPC environment; 3.12 also supported).
 2. Clone the repository and create a virtual environment:
    ```bash
-   python3 -m venv .venv
+   python3.11 -m venv .venv
    source .venv/bin/activate
    pip install --upgrade pip
    make install

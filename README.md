@@ -1,8 +1,18 @@
 # CRISPR-studio
 
+- [![PyPI](https://img.shields.io/pypi/v/crispr_screen_expert)](https://pypi.org/project/crispr_screen_expert/)
+- ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
+- ![License: MIT](https://img.shields.io/badge/license-MIT-green)
+- ![Extras](https://img.shields.io/badge/extras-native%20%7C%20reports%20%7C%20benchmark-6B7280)
+
 - CRISPR-studio is a next-generation analysis and visualization toolkit that turns pooled CRISPR screen data into interactive biological insights.
 - Scope: automated QC, MAGeCK-compatible hit calling, pathway enrichment, curated gene context, and narrative-ready reporting for demos and admissions showcases.
 - Note: This release is an active development build and is not production ready.
+
+**Extras on PyPI**
+- `[reports]` — kaleido + WeasyPrint for HTML/PDF exports.
+- `[native]` — Rust/C++ accelerators for RRA and enrichment backends.
+- `[benchmark]` — psutil-backed runtime + memory benchmarking helpers.
 
 ## Project Layout
 - `src/crispr_screen_expert/` – core pipeline, CLI, and Dash app code.
@@ -15,8 +25,8 @@
 ## Getting Started
 
 ### Prerequisites
-- Python 3.11 (recommended to manage via `pyenv` or system package manager)
-- A virtual environment tool such as `python3 -m venv` or `conda`
+- Python 3.11+ (tested on 3.11/3.12; manage via `pyenv` or system package manager)
+- A virtual environment tool such as `python3.11 -m venv` or `conda`
 - (Optional) Native toolchains for performance modules:
   - GCC ≥ 11 or Clang ≥ 14 (or MSVC 2019 on Windows)
   - CMake ≥ 3.22 and Ninja ≥ 1.11
@@ -24,7 +34,7 @@
 
 ### Installation
 ```bash
-python3 -m venv .venv
+python3.11 -m venv .venv  # use python3.12 if preferred; minimum version is 3.11
 source .venv/bin/activate
 pip install --upgrade pip
 pip install .
@@ -93,7 +103,10 @@ Environment toggles:
 | ≥100k guides, ≥8 replicates | Native stack strongly recommended | Rust RRA delivers 8–12× speed-ups vs. pandas; C++ enrichment removes gseapy latency and scales linearly across libraries. |
 
 ### Quickstart (Placeholder)
-1. Create or activate a Python 3.11 virtual environment.
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/jameshyojaelee/CRISPR-studio/blob/main/notebooks/quickstart.ipynb)
+See `docs/notebooks.md` for Colab/local notebook usage.
+
+1. Create or activate a Python 3.11+ virtual environment (`python3.11 -m venv .venv && source .venv/bin/activate`).
 2. Install the package and extras using `make install`.
 3. Use the Typer CLI via `crispr-studio`:
    - `crispr-studio validate-data sample_data/demo_counts.csv sample_data/demo_library.csv sample_data/demo_metadata.json`
@@ -107,6 +120,18 @@ Environment toggles:
    - `crispr-studio serve-api --host 0.0.0.0 --port 8000` to expose the FastAPI surface (requires `uvicorn`)
 4. Review `docs/demo_runbook.md` for a walkthrough of the end-to-end analysis flow.
 5. Metadata is loaded directly from the supplied JSON path; callers no longer need to pre-parse configs. MAGeCK/native backends fall back to Python implementations when unavailable and emit de-duplicated warnings for the UI/analytics payloads.
+
+## API Usage
+
+- Start the service: `python app_api.py` or `crispr-studio serve-api --host 0.0.0.0 --port 8000`.
+- Example client: `python examples/api_client.py --host http://127.0.0.1:8000` (uses `sample_data/` paths and skips annotations). `make api-example` will spin up uvicorn briefly and run the script for you.
+- cURL equivalent:
+  ```bash
+  HOST=http://127.0.0.1:8000
+  curl -X POST \"$HOST/v1/analysis\" \\
+    -H \"Content-Type: application/json\" \\
+    -d '{\"counts_path\":\"sample_data/demo_counts.csv\",\"library_path\":\"sample_data/demo_library.csv\",\"metadata_path\":\"sample_data/demo_metadata.json\",\"use_mageck\":false,\"skip_annotations\":true}'
+  ```
 
 ### Environment Configuration
 - Create a `.env` file for secrets and overrides:
