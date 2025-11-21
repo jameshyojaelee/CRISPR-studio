@@ -56,7 +56,6 @@ def test_pipeline_native_flag_fallback(monkeypatch, tmp_path, experiment_config)
         paths=DataPaths(
             counts=Path("sample_data/demo_counts.csv"),
             library=Path("sample_data/demo_library.csv"),
-            metadata=Path("sample_data/demo_metadata.json"),
         ),
         settings=PipelineSettings(use_mageck=False, use_native_rra=True, output_root=tmp_path, enrichr_libraries=[]),
     )
@@ -91,7 +90,6 @@ def test_pipeline_uses_native_backend(monkeypatch, tmp_path, experiment_config):
         paths=DataPaths(
             counts=Path("sample_data/demo_counts.csv"),
             library=Path("sample_data/demo_library.csv"),
-            metadata=Path("sample_data/demo_metadata.json"),
         ),
         settings=PipelineSettings(use_mageck=False, use_native_rra=True, output_root=tmp_path, enrichr_libraries=[]),
     )

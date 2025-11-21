@@ -16,7 +16,14 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
-import psutil
+
+try:
+    import psutil
+except ImportError as exc:  # pragma: no cover - guarded import
+    raise SystemExit(
+        "psutil is required for benchmarking. Install with `pip install .[benchmark]` or "
+        "`pip install crispr_screen_expert[benchmark]`."
+    ) from exc
 
 from crispr_screen_expert.models import ExperimentConfig, load_experiment_config
 from crispr_screen_expert.native import rra as native_rra

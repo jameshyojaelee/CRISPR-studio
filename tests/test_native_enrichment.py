@@ -71,7 +71,6 @@ def test_pipeline_native_enrichment_integration(monkeypatch, tmp_path, experimen
         paths=DataPaths(
             counts=Path("sample_data/demo_counts.csv"),
             library=Path("sample_data/demo_library.csv"),
-            metadata=Path("sample_data/demo_metadata.json"),
         ),
         settings=PipelineSettings(
             use_mageck=False,
@@ -104,7 +103,6 @@ def test_pipeline_native_enrichment_fallback(monkeypatch, tmp_path, experiment_c
         paths=DataPaths(
             counts=Path("sample_data/demo_counts.csv"),
             library=Path("sample_data/demo_library.csv"),
-            metadata=Path("sample_data/demo_metadata.json"),
         ),
         settings=PipelineSettings(
             use_mageck=False,
@@ -138,7 +136,6 @@ def test_pipeline_native_enrichment_bad_library(monkeypatch, tmp_path, experimen
         paths=DataPaths(
             counts=Path("sample_data/demo_counts.csv"),
             library=Path("sample_data/demo_library.csv"),
-            metadata=Path("sample_data/demo_metadata.json"),
         ),
         settings=PipelineSettings(
             use_mageck=False,

@@ -16,7 +16,7 @@ import os
 from .analytics import log_event
 from .annotations import fetch_gene_annotations
 from .config import get_settings
-from .data_loader import load_counts, load_library
+from .data_loader import load_counts, load_library, load_metadata
 from .enrichment import run_enrichr
 from .exceptions import DataContractError, QualityControlError
 from .logging_config import get_logger
@@ -45,7 +45,7 @@ logger = get_logger(__name__)
 class DataPaths(NamedTuple):
     counts: Path
     library: Path
-    metadata: Path
+    metadata: Optional[Path] = None
 
 
 @dataclass
@@ -231,14 +231,23 @@ def _apply_env_overrides(settings: PipelineSettings) -> PipelineSettings:
 
 
 def run_analysis(
-    config: ExperimentConfig,
+    config: Optional[ExperimentConfig] = None,
     paths: DataPaths,
     settings: Optional[PipelineSettings] = None,
 ) -> AnalysisResult:
-    """Execute the full CRISPR-studio analysis pipeline."""
+    """Execute the full CRISPR-studio analysis pipeline.
+
+    When ``config`` is omitted, the experiment metadata is loaded from ``paths.metadata``.
+    """
     settings = settings or PipelineSettings()
     settings = _apply_env_overrides(settings)
     start_time = time.time()
+
+    if config is None:
+        if paths.metadata is None:
+            raise DataContractError("Metadata path must be provided when config is not supplied.")
+        config = load_metadata(Path(paths.metadata))
+    assert config is not None
 
     output_dir = _ensure_output_dir(settings.output_root)
     logger.info("Writing analysis artifacts to {}", output_dir)

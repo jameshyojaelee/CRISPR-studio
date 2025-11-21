@@ -22,7 +22,7 @@ import plotly.graph_objects as go
 from ..background import JobManager, JobNotFoundError
 from ..config import get_settings
 from ..data_loader import load_counts
-from ..models import AnalysisResult, load_experiment_config
+from ..models import AnalysisResult, ExperimentConfig, load_experiment_config
 from ..pipeline import DataPaths, PipelineSettings, run_analysis
 from ..visualization import (
     detection_heatmap,
@@ -431,6 +431,7 @@ def _run_pipeline_job(
     counts_path: Path,
     library_path: Path,
     metadata_path: Path,
+    config_payload: Optional[Dict[str, Any]],
     settings_payload: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     normalized_settings = _normalise_settings_data(settings_payload)
@@ -441,7 +442,9 @@ def _run_pipeline_job(
     if cached:
         return cached
 
-    config = load_experiment_config(metadata_path)
+    config = (
+        ExperimentConfig.model_validate(config_payload) if config_payload else load_experiment_config(metadata_path)
+    )
     pipeline_settings = _build_pipeline_settings(normalized_settings)
     result = run_analysis(
         config=config,
@@ -546,6 +549,7 @@ def register_callbacks(app: Dash) -> None:
             counts_path,
             library_path,
             metadata_path,
+            config_store.get("config"),
             settings_data,
         )
         job_data = {

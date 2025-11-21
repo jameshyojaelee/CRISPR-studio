@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, validator
 
 from .background import JobManager, JobNotFoundError, JobSnapshot
 from .config import get_settings
-from .models import AnalysisResult, PipelineWarning, load_experiment_config
+from .models import AnalysisResult, PipelineWarning
 from .pipeline import DataPaths, PipelineSettings, run_analysis
 
 
@@ -76,7 +76,6 @@ def create_app() -> FastAPI:
 
     @app.post("/v1/analysis", response_model=SubmitResponse, status_code=status.HTTP_202_ACCEPTED)
     def submit_analysis(payload: SubmitRequest, _: None = Depends(auth_dependency)) -> SubmitResponse:
-        config_payload = load_experiment_config(payload.metadata_path)
         settings = PipelineSettings(
             use_mageck=payload.use_mageck,
             use_native_rra=payload.use_native_rra,
@@ -87,7 +86,7 @@ def create_app() -> FastAPI:
 
         def run_job() -> AnalysisResult:
             return run_analysis(
-                config=config_payload,
+                config=None,
                 paths=DataPaths(
                     counts=payload.counts_path,
                     library=payload.library_path,

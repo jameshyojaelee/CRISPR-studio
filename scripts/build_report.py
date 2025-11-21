@@ -5,7 +5,6 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-from crispr_screen_expert.models import load_experiment_config
 from crispr_screen_expert.pipeline import DataPaths, PipelineSettings, run_analysis
 from crispr_screen_expert.reporting import export_html, export_pdf
 from scripts.export_openapi import export_schema
@@ -22,9 +21,8 @@ def build_demo_report() -> None:
     library = root / "sample_data" / "demo_library.csv"
     metadata = root / "sample_data" / "demo_metadata.json"
 
-    config = load_experiment_config(metadata)
     result = run_analysis(
-        config=config,
+        config=None,
         paths=DataPaths(counts=counts, library=library, metadata=metadata),
         settings=PipelineSettings(
             use_mageck=False,

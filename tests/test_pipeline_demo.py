@@ -2,14 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from crispr_screen_expert.models import load_experiment_config
 from crispr_screen_expert.pipeline import DataPaths, PipelineSettings, run_analysis
 
 
 def test_pipeline_demo_run(tmp_path):
-    config = load_experiment_config(Path("sample_data/demo_metadata.json"))
     result = run_analysis(
-        config=config,
+        config=None,
         paths=DataPaths(
             counts=Path("sample_data/demo_counts.csv"),
             library=Path("sample_data/demo_library.csv"),

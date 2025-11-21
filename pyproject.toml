@@ -38,12 +38,9 @@ dependencies = [
   "requests",
   "typer[all]",
   "jinja2",
-  "weasyprint",
   "pydantic>=2",
   "pydantic-settings",
   "loguru",
-  "psutil",
-  "kaleido>=0.2.1",
   "fastapi",
   "uvicorn"
 ]
@@ -55,7 +52,10 @@ dev = [
   "dash[testing]",
   "ruff",
   "mypy",
-  "types-requests"
+  "types-requests",
+  "psutil",
+  "kaleido>=0.2.1",
+  "weasyprint"
 ]
 docs = [
   "mkdocs",
@@ -71,6 +71,13 @@ native = [
   "pybind11>=2.11",
   "maturin>=1.4",
   "setuptools-rust>=1.8"
+]
+benchmark = [
+  "psutil"
+]
+reports = [
+  "kaleido>=0.2.1",
+  "weasyprint"
 ]
 
 [project.scripts]

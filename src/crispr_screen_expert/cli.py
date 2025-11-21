@@ -102,7 +102,6 @@ def run_pipeline(
     counts_path = _resolve_path(counts)
     library_path = _resolve_path(library)
     metadata_path = _resolve_path(metadata)
-    config = _load_config(metadata_path)
 
     output_dir = output_root or APP_SETTINGS.artifacts_dir
     libraries = [item.strip() for item in enrichr.split(",")] if enrichr else None
@@ -120,7 +119,7 @@ def run_pipeline(
     )
     try:
         result = run_analysis(
-            config=config,
+            config=None,
             paths=DataPaths(counts=counts_path, library=library_path, metadata=metadata_path),
             settings=pipeline_settings,
         )

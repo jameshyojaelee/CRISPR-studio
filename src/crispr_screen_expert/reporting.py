@@ -190,7 +190,10 @@ def export_pdf(result: AnalysisResult, output_path: Path, template_dir: Path = P
     try:
         from weasyprint import HTML  # type: ignore
     except ImportError as exc:  # pragma: no cover
-        raise RuntimeError("WeasyPrint is required for PDF export.") from exc
+        raise RuntimeError(
+            "WeasyPrint is required for PDF export. Install the reports extra via "
+            "`pip install crispr_screen_expert[reports]`."
+        ) from exc
 
     html = render_html(result, template_dir=template_dir)
     HTML(string=html, base_url=str(template_dir.resolve())).write_pdf(str(output_path))
