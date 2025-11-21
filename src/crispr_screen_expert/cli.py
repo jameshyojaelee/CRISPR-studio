@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Optional
 
 import typer
+from typer.models import OptionInfo
 
 from .data_loader import load_counts, load_library
 from .models import ExperimentConfig, load_experiment_config
@@ -49,6 +50,21 @@ def _load_config(metadata_path: Path) -> ExperimentConfig:
         raise typer.BadParameter(str(exc)) from exc
 
 
+def _parse_bool_option(value: object, default: bool, name: str) -> bool:
+    if isinstance(value, OptionInfo):
+        value = default
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    lowered = str(value).strip().lower()
+    if lowered in {"1", "true", "yes", "on"}:
+        return True
+    if lowered in {"0", "false", "no", "off"}:
+        return False
+    raise typer.BadParameter(f"Invalid boolean value for {name}: {value}")
+
+
 @app.command("validate-data")
 def validate_data(
     counts: Path = typer.Argument(..., help="Path to counts matrix CSV/TSV."),
@@ -89,7 +105,17 @@ def run_pipeline(
     library: Path = typer.Argument(..., help="Path to sgRNA library CSV."),
     metadata: Path = typer.Argument(..., help="Path to experiment metadata JSON."),
     output_root: Optional[Path] = typer.Option(None, "--output-root", "-o", help="Directory to store analysis artifacts."),
-    use_mageck: bool = typer.Option(True, help="Attempt to run MAGeCK if available."),
+    use_mageck: Optional[str] = typer.Option(
+        None,
+        "--use-mageck",
+        help="Attempt to run MAGeCK if available. Pass true/false or use --no-use-mageck.",
+    ),
+    no_use_mageck: bool = typer.Option(
+        False,
+        "--no-use-mageck",
+        help="Disable MAGeCK and use RRA directly.",
+        show_default=False,
+    ),
     use_native_rra: bool = typer.Option(False, help="Use native Rust RRA backend when built."),
     use_native_enrichment: bool = typer.Option(False, help="Use native enrichment backend when built."),
     enrichr: Optional[str] = typer.Option(None, "--enrichr-libraries", help="Comma-separated Enrichr libraries."),
@@ -106,16 +132,27 @@ def run_pipeline(
     output_dir = output_root or APP_SETTINGS.artifacts_dir
     libraries = [item.strip() for item in enrichr.split(",")] if enrichr else None
 
+    use_mageck_value = _parse_bool_option(use_mageck, default=True, name="use_mageck")
+    disable_mageck = _parse_bool_option(no_use_mageck, default=False, name="no_use_mageck")
+    if disable_mageck:
+        use_mageck_value = False
+    use_native_rra_value = _parse_bool_option(use_native_rra, default=False, name="use_native_rra")
+    use_native_enrichment_value = _parse_bool_option(
+        use_native_enrichment, default=False, name="use_native_enrichment"
+    )
+    enable_llm_value = _parse_bool_option(enable_llm, default=False, name="enable_llm")
+    skip_annotations_value = _parse_bool_option(skip_annotations, default=False, name="skip_annotations")
+
     pipeline_settings = PipelineSettings(
-        use_mageck=use_mageck,
-        enable_llm=enable_llm,
+        use_mageck=use_mageck_value,
+        enable_llm=enable_llm_value,
         output_root=output_dir,
         enrichr_libraries=libraries,
         narrative_model=narrative_model,
         narrative_temperature=narrative_temperature,
-        use_native_rra=use_native_rra,
-        use_native_enrichment=use_native_enrichment,
-        cache_annotations=not skip_annotations,
+        use_native_rra=use_native_rra_value,
+        use_native_enrichment=use_native_enrichment_value,
+        cache_annotations=not skip_annotations_value,
     )
     try:
         result = run_analysis(

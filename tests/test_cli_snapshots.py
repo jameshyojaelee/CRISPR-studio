@@ -10,7 +10,7 @@ from crispr_screen_expert.cli import run_pipeline
 
 def _normalize_output(output: str, run_dir: Path) -> str:
     normalized = output.replace(str(run_dir), "<RUN_DIR>")
-    normalized = re.sub(r'"runtime_seconds":\\s*[0-9.]+', '"runtime_seconds": 0', normalized)
+    normalized = re.sub(r'"runtime_seconds":\s*[-0-9.]+', '"runtime_seconds": 0', normalized)
     return normalized.strip()
 
 
