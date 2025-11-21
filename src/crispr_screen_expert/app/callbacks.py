@@ -19,7 +19,7 @@ from dash.dependencies import ALL
 import pandas as pd
 import plotly.graph_objects as go
 
-from ..background import JobManager
+from ..background import JobManager, JobNotFoundError
 from ..config import get_settings
 from ..data_loader import load_counts
 from ..models import AnalysisResult, load_experiment_config
@@ -637,7 +637,10 @@ def register_callbacks(app: Dash) -> None:
             )
 
         if status == "failed":
-            exception = JOB_MANAGER.exception(job_id)
+            try:
+                exception = JOB_MANAGER.exception(job_id)
+            except JobNotFoundError:
+                exception = None
             warning = f"Analysis job failed: {exception}" if exception else "Analysis job failed."
             graph_outputs = _error_outputs(warning)
             job_data = {
@@ -657,29 +660,42 @@ def register_callbacks(app: Dash) -> None:
             )
 
         if status == "finished":
-            payload = JOB_MANAGER.result(job_id)
-            graph_outputs = _payload_to_outputs(payload)
-            runtime_seconds = payload.get("runtime_seconds")
+            try:
+                payload = JOB_MANAGER.result(job_id)
+            except JobNotFoundError:
+                payload = None
+            if payload is None:
+                graph_outputs = _error_outputs("Completed job payload unavailable.")
+                runtime_seconds = None
+                warnings_markup = []
+                job_settings = job_data.get("settings")
+                warnings = []
+                status_text = "Analysis complete (payload missing)"
+            else:
+                graph_outputs = _payload_to_outputs(payload)
+                runtime_seconds = payload.get("runtime_seconds")
+                warnings = payload.get("warnings", [])
+                warnings_markup = _warnings_markup(warnings)
+                job_settings = payload.get("settings", job_data.get("settings"))
+                status_text = "Analysis complete"
             if runtime_seconds is None and job_data.get("started"):
                 runtime_seconds = now - job_data["started"]
             runtime_text = f"Runtime: {runtime_seconds:.1f}s" if runtime_seconds is not None else ""
-            job_settings = payload.get("settings", job_data.get("settings"))
             job_data = {
                 "status": "completed",
                 "job_id": None,
                 "completed": now,
-                "warnings": payload.get("warnings", []),
+                "warnings": warnings,
                 "runtime": runtime_seconds,
                 "settings": job_settings,
             }
-            status_text = "Analysis complete"
             return (
                 *graph_outputs,
                 job_data,
                 True,
                 status_text,
                 runtime_text,
-                _warnings_markup(payload.get("warnings", [])),
+                warnings_markup,
                 _settings_badges(job_settings),
                 "job-status-overlay",
             )

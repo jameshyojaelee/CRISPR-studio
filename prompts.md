@@ -1,12 +1,4 @@
 
-### Prompt 4: JobManager Lifecycle & Observability Upgrade
-Improve `src/crispr_screen_expert/background.py`-based job handling for both Dash and FastAPI surfaces:
-1. Track job metadata (submitted, started, finished timestamps, exception info) in a dedicated dataclass. Remove finished/failed futures from `_jobs` to prevent unbounded growth; keep a capped history (e.g., last 50 jobs) for status queries.
-2. Add optional callbacks for completion so API layer can plug in analytics/logging without duplicating logic in callbacks.py and api.py.
-3. Guard `result()`/`exception()` calls with error handling so unknown job IDs raise a clear custom exception.
-4. Introduce tests in `tests/test_api.py` (or a new test file) to simulate many jobs and assert futures are cleaned up while metadata remains accessible for completed jobs.
-Acceptance: running 500 sequential jobs does not grow memory linearly, and coverage proves cleanup works.
-
 ### Prompt 5: Simplify Pipeline DataPaths Usage
 The `DataPaths` NamedTuple currently carries a metadata path that isn’t consumed. Align config loading logic:
 1. Decide on one of two approaches and implement it consistently:

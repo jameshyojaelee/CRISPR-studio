@@ -8,7 +8,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, status
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field, validator
 
-from .background import JobManager
+from .background import JobManager, JobNotFoundError, JobSnapshot
 from .config import get_settings
 from .models import AnalysisResult, PipelineWarning, load_experiment_config
 from .pipeline import DataPaths, PipelineSettings, run_analysis
@@ -96,17 +96,21 @@ def create_app() -> FastAPI:
                 settings=settings,
             )
 
-        job_id = config.job_manager.submit(run_job)
-        future = config.job_manager.future(job_id)
-        if future:
-            def _callback(future) -> None:
+        def _on_complete(snapshot: JobSnapshot) -> None:
+            if snapshot.status == "finished":
                 try:
-                    result = future.result()
-                    config.record_success(job_id, result)
-                except BaseException as exc:  # pragma: no cover - defensive
-                    config.record_failure(job_id, exc)
+                    result = config.job_manager.result(snapshot.job_id)
+                except JobNotFoundError:
+                    return
+                config.record_success(snapshot.job_id, result)
+            elif snapshot.status == "failed":
+                try:
+                    error = config.job_manager.exception(snapshot.job_id)
+                except JobNotFoundError:
+                    error = RuntimeError("Job missing from history")
+                config.record_failure(snapshot.job_id, error or RuntimeError("Unknown failure"))
 
-            future.add_done_callback(_callback)
+        job_id = config.job_manager.submit(run_job, on_complete=_on_complete)
 
         return SubmitResponse(job_id=job_id, status="queued")
 
