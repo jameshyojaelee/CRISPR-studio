@@ -14,8 +14,8 @@ from .models import ExperimentConfig, QCMetric, QCSeverity
 
 # Threshold defaults drawn from typical pooled CRISPR screen heuristics.
 _REPLICATE_THRESHOLDS = {
-    QCSeverity.OK: 0.9,
-    QCSeverity.WARNING: 0.7,
+    QCSeverity.OK: 0.85,
+    QCSeverity.WARNING: 0.5,
 }
 
 _DETECTION_THRESHOLDS = {

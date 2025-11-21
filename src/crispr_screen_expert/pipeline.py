@@ -73,6 +73,19 @@ def _add_warning(
     warnings.append(PipelineWarning(code=code, message=message, details=details or {}))
 
 
+def _dedupe_warnings(warnings: List[PipelineWarning]) -> List[PipelineWarning]:
+    """Return warnings with duplicate code/message/details removed while preserving order."""
+    seen = set()
+    unique: List[PipelineWarning] = []
+    for warning in warnings:
+        key = (warning.code, warning.message, json.dumps(warning.details, sort_keys=True))
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(warning)
+    return unique
+
+
 def _run_gene_scoring(
     log2fc: pd.Series,
     library: pd.DataFrame,
@@ -231,8 +244,8 @@ def _apply_env_overrides(settings: PipelineSettings) -> PipelineSettings:
 
 
 def run_analysis(
-    config: Optional[ExperimentConfig] = None,
     paths: DataPaths,
+    config: Optional[ExperimentConfig] = None,
     settings: Optional[PipelineSettings] = None,
 ) -> AnalysisResult:
     """Execute the full CRISPR-studio analysis pipeline.
@@ -242,13 +255,6 @@ def run_analysis(
     settings = settings or PipelineSettings()
     settings = _apply_env_overrides(settings)
     start_time = time.time()
-
-    if config is None:
-        if paths.metadata is None:
-            raise DataContractError("Metadata path must be provided when config is not supplied.")
-        config = load_metadata(Path(paths.metadata))
-    assert config is not None
-
     output_dir = _ensure_output_dir(settings.output_root)
     logger.info("Writing analysis artifacts to {}", output_dir)
     log_event(
@@ -262,29 +268,48 @@ def run_analysis(
         },
     )
 
-    counts = load_counts(paths.counts)
-    library = load_library(paths.library)
-    metadata = config
     warnings: List[PipelineWarning] = []
 
-    qc_metrics = run_all_qc(
-        counts,
-        library,
-        metadata,
-        min_count=metadata.analysis.min_count_threshold,
-    )
+    def _log_failure(reason: str, *, error: Optional[BaseException] = None, extra: Optional[Dict[str, object]] = None) -> None:
+        payload: Dict[str, object] = {
+            "output_dir": str(output_dir),
+            "reason": reason,
+            "warnings": [warning.model_dump(mode="json") for warning in _dedupe_warnings(warnings)],
+        }
+        if error is not None:
+            payload["error"] = str(error)
+        if extra:
+            payload.update(extra)
+        log_event("analysis_failed", payload)
+
+    try:
+        if config is None:
+            if paths.metadata is None:
+                raise DataContractError("Metadata path must be provided when config is not supplied.")
+            config = load_metadata(Path(paths.metadata))
+        assert config is not None
+
+        counts = load_counts(paths.counts)
+        library = load_library(paths.library)
+        metadata = config
+    except DataContractError as exc:
+        _log_failure("data_contract_error", error=exc)
+        raise
+
+    try:
+        qc_metrics = run_all_qc(
+            counts,
+            library,
+            metadata,
+            min_count=metadata.analysis.min_count_threshold,
+        )
+    except DataContractError as exc:
+        _log_failure("data_contract_error", error=exc)
+        raise
     critical_metrics = [metric for metric in qc_metrics if metric.severity == QCSeverity.CRITICAL]
     if critical_metrics:
         failure_details = ", ".join(metric.name for metric in critical_metrics)
-        log_event(
-            "analysis_failed",
-            {
-                "output_dir": str(output_dir),
-                "reason": "qc_failure",
-                "critical_metrics": failure_details,
-                "warnings": [],
-            },
-        )
+        _log_failure("qc_failure", extra={"critical_metrics": failure_details})
         raise QualityControlError(
             f"Quality control checks failed: {failure_details}. Resolve issues before rerunning.",
             metrics=critical_metrics,
@@ -431,6 +456,7 @@ def run_analysis(
         annotations_path.write_text(json.dumps(annotation_data, indent=2))
         artifacts["gene_annotations"] = str(annotations_path)
 
+    warnings = _dedupe_warnings(warnings)
     runtime = time.time() - start_time
     summary = build_analysis_summary(
         total_guides=counts.shape[0],

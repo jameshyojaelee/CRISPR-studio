@@ -1,0 +1,17 @@
+Analysis completed.
+{
+  "total_guides": 14,
+  "total_genes": 5,
+  "significant_genes": 0,
+  "runtime_seconds": 0,
+  "screen_type": "dropout",
+  "scoring_method": "rra",
+  "notes": []
+}
+Artifacts:
+  raw_counts: <RUN_DIR>/raw_counts.csv
+  gene_results: <RUN_DIR>/gene_results.csv
+  normalized_counts: <RUN_DIR>/normalized_counts.csv
+  qc_metrics: <RUN_DIR>/qc_metrics.json
+  pipeline_settings: <RUN_DIR>/pipeline_settings.json
+  analysis_result: <RUN_DIR>/analysis_result.json

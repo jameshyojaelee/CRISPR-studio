@@ -26,7 +26,7 @@
 
 Core modules:
 
-- `data_loader.py`: strict contract enforcement for counts/library/metadata; raises `DataContractError` on failure.
+- `data_loader.py`: strict contract enforcement for counts/library/metadata; raises `DataContractError` on failure. Metadata JSON is loaded once inside `pipeline.run_analysis` when a config object is not provided, so callers can safely pass only `DataPaths` with a metadata path.
 - `normalization.py`, `qc.py`, `rra.py`: numpy/pandas transformations with unit tests.
 - `pipeline.py`: orchestrates the full analysis, persisting artifacts and narratives, using `PipelineSettings` for options.
 - `background.py`: thread pool manager + dataset caching for Dash.
@@ -68,6 +68,14 @@ Core modules:
 - Tests live under `tests/`; add fixtures in `conftest.py` when sharing setup.
 - Keep uploads and artifacts under directories supplied by `Settings` to respect environment overrides.
 
+### Packaging & Extras
+
+- Core installs now exclude optional tooling; install extras as needed:
+  - `pip install .[reports]` for kaleido/WeasyPrint-powered exports.
+  - `pip install .[benchmark]` for psutil-backed benchmarking.
+  - `pip install .[native]` for the Rust/C++ accelerators.
+- CI includes a lightweight packaging job that exercises `pip install .`, `.[benchmark]`, and `.[reports]` to guard against missing extras.
+
 ## Adding New Scoring Methods
 
 1. Implement the scoring function in a dedicated module (e.g., `src/.../scoring_new.py`).
@@ -101,7 +109,7 @@ Core modules:
   - `--dataset-size {small,medium,large}` selects guide/replicate counts.
   - `--repeat N` averages metrics over multiple runs.
   - `--use-native-rra/--no-use-native-rra` toggles native benchmarking alongside the Python baseline.
-- Outputs are written to `artifacts/benchmarks/<timestamp>/` as `metrics.json` (machine readable) and `summary.md` (human summary). Per-run metrics include wall-clock runtime, CPU seconds, CPU%, and RSS memory via `psutil`.
+- Outputs are written to `artifacts/benchmarks/<timestamp>/` as `metrics.json` (machine readable) and `summary.md` (human summary). Per-run metrics include wall-clock runtime, CPU seconds, CPU%, and RSS memory via `psutil` (installable via `pip install .[benchmark]` or `make benchmark`).
 - When the native backend is executed, the script performs a parity check against the Python results and surfaces the maximum absolute delta.
 - Large CSV/JSON datasets are generated on demand and ignored by git via `benchmarks/data/.gitignore`.
 
@@ -116,6 +124,7 @@ Core modules:
 ## Logging & Troubleshooting
 
 - Logs are stored in `logs/crispr_studio.log` (rotation weekly). Adjust level via `LOG_LEVEL` env var.
+- `analytics.log_event` records `analysis_started`/`analysis_completed` plus failure reasons. Warning payloads are de-duplicated before being persisted.
 - Dash callbacks rely on background jobs; if UI appears idle, inspect `STORE_JOB` values via browser dev-tools or review logs for exceptions.
 
 ## Non-Goals

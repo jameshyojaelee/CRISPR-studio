@@ -28,6 +28,9 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
 pip install .
+# Optional extras:
+# pip install .[reports]   # PDF export + SVG rendering (kaleido + WeasyPrint)
+# pip install .[benchmark] # psutil-backed benchmarking utilities
 ```
 Alternatively, use the provided `Makefile` targets once dependencies are installed (described below).
 
@@ -40,6 +43,7 @@ Alternatively, use the provided `Makefile` targets once dependencies are install
 | `make test` | Execute the pytest suite with coverage once tests exist. |
 | `make run-app` | Launch the Dash web application (placeholder). |
 | `make build-report` | Build static reports (placeholder). |
+| `make benchmark` | Install benchmark extras and run the synthetic benchmark script. |
 | `make clean` | Remove build artifacts and caches. |
 
 Manual equivalents:
@@ -99,8 +103,10 @@ Environment toggles:
    - `crispr-studio run-pipeline sample_data/demo_counts.csv sample_data/demo_library.csv sample_data/demo_metadata.json --skip-annotations` (offline mode; skips MyGene.info requests)
    - `crispr-studio list-artifacts`
    - `make build-report` to generate refreshed HTML/PDF reports under `artifacts/latest_report/`
+   - `make benchmark` to pull in psutil and run synthetic pipeline benchmarks under `artifacts/benchmarks/`
    - `crispr-studio serve-api --host 0.0.0.0 --port 8000` to expose the FastAPI surface (requires `uvicorn`)
 4. Review `docs/demo_runbook.md` for a walkthrough of the end-to-end analysis flow.
+5. Metadata is loaded directly from the supplied JSON path; callers no longer need to pre-parse configs. MAGeCK/native backends fall back to Python implementations when unavailable and emit de-duplicated warnings for the UI/analytics payloads.
 
 ### Environment Configuration
 - Create a `.env` file for secrets and overrides:
@@ -144,4 +150,6 @@ Environment toggles:
 - `docs/demo_runbook.md` – step-by-step instructions for demoing the pipeline.
 - `docs/data_contract.md` – structured expectations for counts, library, and metadata files.
 - `docs/user_guide.md` / `docs/developer_guide.md` – usage tips and architecture notes (draft).
+- `docs/troubleshooting.md` – quick fixes for common warnings (native fallbacks, annotation batches, cache issues).
+- `docs/runbooks/operations.md` – operational checklist for the JobManager, analytics logs, and OpenAPI exports.
 - `docs/security_privacy.md` / `docs/roadmap.md` – compliance checklist and upcoming milestones.

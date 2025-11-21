@@ -203,3 +203,43 @@ def test_native_enrichment_runtime_error_falls_back(monkeypatch: pytest.MonkeyPa
 
     assert fallback_calls["count"] == 1
     assert any(warning.code == "native_enrichment_backend_failed" for warning in result.warnings)
+
+
+def test_log_event_records_qc_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    events: list[tuple[str, dict]] = []
+    monkeypatch.setattr("crispr_screen_expert.pipeline.log_event", lambda name, payload=None: events.append((name, payload or {})))
+
+    counts_path = tmp_path / "counts.csv"
+    library_path = tmp_path / "library.csv"
+    metadata_path = tmp_path / "metadata.json"
+
+    _write_counts(counts_path, [("g1", 0, 0), ("g2", 0, 0)])
+    _write_library(library_path, [("g1", "GENE1"), ("g2", "GENE2")])
+    _write_metadata(metadata_path)
+
+    config = load_experiment_config(metadata_path)
+
+    with pytest.raises(QualityControlError):
+        run_analysis(
+            config=config,
+            paths=DataPaths(counts=counts_path, library=library_path, metadata=metadata_path),
+            settings=PipelineSettings(use_mageck=False, output_root=tmp_path, cache_annotations=False),
+        )
+
+    reasons = [payload.get("reason") for name, payload in events if name == "analysis_failed"]
+    assert "qc_failure" in reasons
+
+
+def test_log_event_records_data_contract_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, experiment_config) -> None:
+    events: list[tuple[str, dict]] = []
+    monkeypatch.setattr("crispr_screen_expert.pipeline.log_event", lambda name, payload=None: events.append((name, payload or {})))
+
+    with pytest.raises(DataContractError):
+        run_analysis(
+            config=experiment_config,
+            paths=DataPaths(counts=tmp_path / "missing_counts.csv", library=Path("sample_data/demo_library.csv")),
+            settings=PipelineSettings(use_mageck=False, output_root=tmp_path, cache_annotations=False),
+        )
+
+    failure_payloads = [payload for name, payload in events if name == "analysis_failed"]
+    assert any(payload.get("reason") == "data_contract_error" for payload in failure_payloads)

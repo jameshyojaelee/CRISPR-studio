@@ -76,7 +76,7 @@ Set `CRISPR_STUDIO_USE_NATIVE_RRA=1` and/or `CRISPR_STUDIO_USE_NATIVE_ENRICHMENT
    - **Results** tab: summary cards, volcano plot, interactive gene table (select a row to view annotations in the modal).
    - **QC** tab: replicate correlation and detection heatmap with thresholds.
    - **Pathways** tab: bubble chart summarising Enrichr/GSEA output.
-   - **Reports** tab: download an HTML summary; PDF export requires WeasyPrint.
+  - **Reports** tab: download an HTML summary; PDF export requires the reports extra (`pip install .[reports]`).
 
 ## Interpreting Metrics
 
@@ -91,7 +91,7 @@ Set `CRISPR_STUDIO_USE_NATIVE_RRA=1` and/or `CRISPR_STUDIO_USE_NATIVE_ENRICHMENT
 - **MAGeCK Missing**: Install from Bitbucket (`pip install /tmp/mageck-bitbucket`). The pipeline automatically falls back to RRA when MAGeCK fails or is unavailable.
 - **Native build failures**: Confirm platform prerequisites (compilers, CMake, Ninja, Rust) are installed and run the build commands from a clean virtual environment. Review `cpp/build/*/CMakeOutput.log` or `rust/target` logs for details.
 - **Native RRA/enrichment unavailable**: If the native module fails to import, set `CRISPR_STUDIO_FORCE_PYTHON=1` to continue with the Python fallback and rebuild the extension later.
-- **WeasyPrint Not Installed**: HTML export remains available; install system dependencies and `pip install weasyprint` for PDF support.
+- **WeasyPrint Not Installed**: HTML export remains available; install system dependencies and `pip install .[reports]` for PDF support.
 - **Large Datasets**: Background jobs are queued (ThreadPoolExecutor). Monitor `logs/crispr_studio.log` for timings and warnings.
 
 ## Configure Analytics Opt-In
