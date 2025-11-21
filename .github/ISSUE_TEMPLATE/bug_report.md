@@ -1,28 +1,27 @@
 ---
 name: Bug report
-about: Help us reproduce and fix problems
+about: Create a report to help us improve
+title: "[Bug] "
 labels: bug
+assignees: ''
 ---
 
-## Summary
-Clear, one-sentence description of the issue.
+## Describe the bug
+A clear and concise description of what the bug is.
 
-## Steps to reproduce
-1. Command or UI action executed:
-2. Sample files used (paths to counts/library/metadata; attach snippets if possible):
-3. Expected result:
-4. Actual result:
+## To Reproduce
+- Steps (commands/UI clicks) to reproduce:
+1. 
+2. 
+3. 
+- Sample files/paths (counts, library, metadata). If using `sample_data/`, specify which files.
+- Python version and OS:
 
-## Logs / warnings
-- Console/CLI output:
-- `logs/crispr_studio.log` snippet (if available):
-- UI warnings or screenshots:
+## Expected behavior
+A clear and concise description of what you expected to happen.
 
-## Environment
-- OS and version:
-- Python version:
-- Extras installed: (reports/native/benchmark)
-- Running via: CLI / Dash UI / FastAPI
+## Screenshots/Logs
+Paste stack traces or attach screenshots, including any warnings shown in the Dash UI or `logs/crispr_studio.log`.
 
 ## Additional context
-Anything else that might help (branch, commit SHA, network constraints, etc.).
+e.g., native backends enabled? annotations skipped? running inside Docker/CI?***

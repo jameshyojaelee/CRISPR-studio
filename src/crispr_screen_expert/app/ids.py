@@ -24,8 +24,6 @@ BUTTON_DOWNLOAD_REPORT = "button-download-report"
 DOWNLOAD_REPORT = "download-report"
 BUTTON_DOWNLOAD_SAMPLE_REPORT = "button-download-sample-report"
 DOWNLOAD_SAMPLE_REPORT = "download-sample-report"
-BUTTON_DOWNLOAD_SAMPLE_HTML = "button-download-sample-html"
-DOWNLOAD_SAMPLE_HTML = "download-sample-html"
 INTERVAL_JOB = "interval-job"
 INTERVAL_HISTORY = "interval-history"
 

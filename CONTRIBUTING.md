@@ -1,29 +1,32 @@
 # Contributing to CRISPR-studio
 
-Thanks for helping improve CRISPR-studio! This guide covers environments, testing, and expectations for pull requests.
+Thanks for helping improve CRISPR-studio! This guide covers how to propose changes and what information helps us review quickly.
 
-## Environment
-- Python 3.11+ (CI runs 3.11 & 3.12). Create a venv with `python3.11 -m venv .venv && source .venv/bin/activate`.
-- Install dev dependencies: `make install` (installs `. [dev,docs]`).
-- Optional lint autofix: `make lint-fix` (runs `ruff --fix`). Set up `pre-commit` with `pre-commit install` to keep hooks consistent.
-- Sample data lives in `sample_data/`; templates are under `templates/data_contract/`. Validate new datasets with:  
-  `python scripts/validate_dataset.py sample_data/demo_counts.csv sample_data/demo_library.csv sample_data/demo_metadata.json`
+## Quickstart
+- Use Python 3.11+.
+- Create a virtualenv: `python3.11 -m venv .venv && source .venv/bin/activate`.
+- Install deps: `make install` (pulls dev + docs extras).
+- Format/lint: `make lint` and `make lint-fix` (ruff + mypy).
+- Tests: `make test`. Dash UI tests are marked `-m dash`; run selectively for UI changes.
+- API smoke: `make api-example` exercises the FastAPI client against a local uvicorn server.
 
-## Development workflow
-- Lint/type-check: `make lint` (ruff + mypy).
-- Tests: `make test` (pytest). Dash UI tests are marked `@pytest.mark.dash`; run them with `pytest -m dash` when changing layout/callbacks.
-- Benchmarks (optional): `python scripts/benchmark_pipeline.py --dataset-size small --repeat 1 --jsonl artifacts/benchmarks/dev.jsonl --plot`.
-- API example: `make api-example` spins up uvicorn briefly and exercises `examples/api_client.py`.
+## PR Checklist
+- Describe the bug/feature and link to any issues.
+- Include reproduction details and sample data paths (e.g., `sample_data/demo_counts.csv`) or attach minimal CSV/JSON snippets.
+- Add/adjust tests for new behaviors; keep runtime short (<5s for unit tests).
+- For data contract or pipeline changes, update docs (`docs/data_contract.md`, `docs/user_guide.md`) and templates under `templates/data_contract/`.
+- For UI work, note any new Dash elements and ensure accessibility (tooltips/helptext where relevant).
 
-## Pull requests
-- Describe the user-facing change and include repro info if fixing a bug (sample file paths help).
-- Add/adjust tests and docs for new behavior.
-- Keep commits focused; avoid reformatting unrelated files.
-- Adhere to the [Code of Conduct](CODE_OF_CONDUCT.md).
+## Issue Reports
+- Include steps to reproduce, expected vs actual behavior, stack traces/log snippets, and environment details (`python --version`, OS).
+- Provide sample files or point to `sample_data/` equivalents that trigger the issue.
+- For performance issues, share dataset size, repeat count, and whether native backends were enabled.
 
-## Reporting issues
-When filing bugs, include:
-- OS, Python version, and extras installed.
-- Exact command or UI action taken.
-- Sample counts/library/metadata files or redacted snippets.
-- Logs (`logs/crispr_studio.log`) and any warnings from the UI/CLI.
+## Code Style & Tooling
+- Ruff handles formatting (`make lint-fix`); mypy is configured for type checks.
+- Target Python 3.11+; keep code ASCII unless there is a strong reason otherwise.
+- Prefer small, focused commits; avoid force-pushing after review has started unless requested.
+
+## Security & Conduct
+- Follow the [Code of Conduct](CODE_OF_CONDUCT.md).
+- Do not commit secrets or proprietary data. Use `.env` for local secrets and `.gitignore` respects `artifacts/` by default.

@@ -387,8 +387,13 @@ def _warning_text(warning: Any) -> str:
     if isinstance(warning, dict):
         code = warning.get("code")
         message = warning.get("message") or warning.get("text") or ""
+        details = warning.get("details") or {}
+        hint = details.get("hint") or details.get("recommendation")
         prefix = f"[{code}] " if code else ""
-        return f"{prefix}{message}"
+        text = f"{prefix}{message}"
+        if hint:
+            text = f"{text} — {hint}"
+        return text
     return str(warning)
 
 
@@ -762,8 +767,6 @@ def register_callbacks(app: Dash) -> None:
         Output(ids.RUN_HISTORY_EMPTY, "hidden"),
         Output(ids.STORE_HISTORY, "data"),
         Output(ids.BUTTON_DOWNLOAD_SAMPLE_REPORT, "disabled"),
-        Output(ids.BUTTON_RERUN_LAST, "disabled"),
-        Output(ids.BUTTON_DOWNLOAD_SAMPLE_HTML, "disabled"),
         Input(ids.INTERVAL_HISTORY, "n_intervals"),
         Input(ids.STORE_RESULTS, "data"),
         prevent_initial_call=False,
@@ -772,20 +775,17 @@ def register_callbacks(app: Dash) -> None:
         runs = _list_recent_runs()
         sample_bundle = _find_sample_report()
         sample_bundle_disabled = sample_bundle is None
-        sample_html = _ensure_sample_report()
-        sample_html_disabled = sample_html is None
         store_payload = {
             "runs": runs,
             "sample_report": str(sample_bundle) if sample_bundle else None,
-            "sample_html": str(sample_html) if sample_html else None,
         }
         if not runs:
-            return [], False, store_payload, sample_bundle_disabled, True, sample_html_disabled
+            return [], False, store_payload, sample_bundle_disabled
 
         history_items = [_build_history_item(run) for run in runs]
         history_group = dbc.ListGroup(history_items, flush=True, className="history-group")
         store_payload["latest"] = runs[0]
-        return history_group, True, store_payload, sample_bundle_disabled, False, sample_html_disabled
+        return history_group, True, store_payload, sample_bundle_disabled
 
     @app.callback(
         Output(ids.STORE_RESULTS, "data", allow_duplicate=True),
@@ -976,17 +976,6 @@ def register_callbacks(app: Dash) -> None:
         if not sample_report:
             raise dash.exceptions.PreventUpdate
         return dcc.send_file(str(sample_report))
-
-    @app.callback(
-        Output(ids.DOWNLOAD_SAMPLE_HTML, "data"),
-        Input(ids.BUTTON_DOWNLOAD_SAMPLE_HTML, "n_clicks"),
-        prevent_initial_call=True,
-    )
-    def download_sample_html(_n_clicks):
-        html_path = _ensure_sample_report()
-        if not html_path:
-            raise dash.exceptions.PreventUpdate
-        return dcc.send_file(str(html_path))
 
     @app.callback(
         Output(ids.DOWNLOAD_REPORT, "data"),

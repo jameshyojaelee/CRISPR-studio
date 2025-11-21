@@ -1,29 +1,37 @@
-# Performance Guide
+# Performance Benchmarks
 
-Benchmarks run on synthetic datasets bundled with `scripts/benchmark_pipeline.py`. The figures below are indicative for a modern laptop (8 vCPU, 16 GB RAM) using Python-only backends; native paths typically deliver 3–8× faster runtimes.
+This project ships a synthetic benchmark harness to sanity‑check runtime and memory across dataset sizes. Numbers are indicative for laptop CPUs; expect faster results on server hardware.
 
-| Dataset | Guides | Replicates | Python runtime (mean) | Native runtime (mean) | Notes |
-| --- | --- | --- | --- | --- | --- |
-| small | 1k | 4 | < 20 s | < 10 s | Good for smoke tests and CI |
-| medium | 20k | 6 | ~90 s | ~35 s | Approaches demo scale |
-| large | 100k | 8 | 5–7 min | 2–3 min | Use native RRA/enrichment and warmed caches |
+## Expected Runtimes (Python pipeline)
+- **Small (1k guides, 4 reps)**: ~10–15s, RSS ~300–400 MB.
+- **Medium (20k guides, 6 reps)**: ~75–110s, RSS ~1.2–1.6 GB.
+- **Large (100k guides, 8 reps)**: ~5–7 minutes, RSS ~3–4 GB.
+- Native RRA typically reduces runtime by 2–5× on medium/large datasets; enrichment acceleration depends on library size.
 
-## Running the benchmark suite
+## Running Benchmarks
+- Install extras: `pip install .[benchmark]`.
+- Quick check (single dataset):  
+  `python scripts/benchmark_pipeline.py --dataset-size small --repeat 2 --jsonl --plot`
+- All sizes with a runtime-vs-size plot and JSONL:  
+  `python scripts/benchmark_pipeline.py --all-sizes --repeat 2 --jsonl --plot`
+- Include native backend: add `--use-native-rra` (requires native build).
+- Override JSONL destination: `--jsonl-path /tmp/runs.jsonl`.
 
-```bash
-pip install .[benchmark]
-python scripts/benchmark_pipeline.py --dataset-size medium --repeat 2 --use-native-rra --jsonl artifacts/benchmarks/runs.jsonl --plot
-```
+Outputs land under `artifacts/benchmarks/<timestamp>/<size>/` with:
+- `metrics.json` and `summary.md` (aggregated stats).
+- `runs.jsonl` (per-run metrics when `--jsonl` is set).
+- `runtime_vs_size.html` (line chart; PNG if `kaleido` is available).
 
-- `--jsonl` appends per-run metrics (runtime, CPU%, RSS) for downstream aggregation.
-- `--plot` writes `runtime_vs_size.html` alongside `metrics.json`/`summary.md`.
-- `--use-native-rra/--no-use-native-rra` toggles Rust backend benchmarking.
+## CI & Artifacts
+- Benchmarks are optional and scoped to scheduled workflows; JSONL/plots can be uploaded as artifacts without impacting default CI time.
+- Keep default repeat counts low (`--repeat 1` or `2`) in automation; larger repeats are better for local profiling.
 
-Nightly CI (scheduled) runs the small dataset and uploads `artifacts/benchmarks/*.jsonl` as an artifact for quick regressions. For local experiments, keep datasets under `benchmarks/data/<size>/` to avoid re-generating fixtures on every run.
+## Network & Caching Tips
+- Warm the MyGene annotation cache before large runs to avoid intermittent HTTP 5xx: run `crispr-studio run-pipeline ... --skip-annotations false` once on a small dataset to hydrate `.cache/gene_cache.json`.
+- For flaky networks, set `MYGENE_BATCH_SIZE=250` (clamped ≤500) to reduce request size and increase cache hits.
+- If annotations remain unstable, use `--skip-annotations` or `PipelineSettings(cache_annotations=False)`; runtime benchmarks will still execute and log a warning.
 
-## Reliability tips
-
-- **Annotation cache prewarm:** run once with network access so `.cache/gene_cache.json` is populated; subsequent offline runs avoid MyGene.info entirely.
-- **MyGene batch sizing:** set `MYGENE_BATCH_SIZE=250` (max 500) on flaky networks to reduce request failures; warnings stay deduplicated in the UI.
-- **Skip annotations when needed:** pass `--skip-annotations` (or uncheck annotations in the Dash UI) for air-gapped demos; enrichment is still available for bundled libraries.
-- **Native backends:** enable `--use-native-rra` and `--use-native-enrichment` for >20k guides to keep runtimes predictable; the pipeline falls back automatically when extensions are missing.
+## Native Build Notes
+- Export `CRISPR_NATIVE_USE_NATIVE_ARCH=ON` to optimise native builds for the host CPU.
+- Set `CRISPR_NATIVE_ENABLE_OPENMP=0` when running in constrained environments without OpenMP support.
+- If native imports fail, benchmarking falls back to the Python implementation and logs a warning in the summary.

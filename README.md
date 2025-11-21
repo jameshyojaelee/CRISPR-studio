@@ -49,11 +49,13 @@ Alternatively, use the provided `Makefile` targets once dependencies are install
 | --- | --- |
 | `make install` | Install the package with development extras. |
 | `make lint` | Run `ruff` and `mypy` linting. |
+| `make lint-fix` | Apply lint fixes via `ruff --fix`. |
 | `make format` | Apply formatting fixes via `ruff --fix`. |
 | `make test` | Execute the pytest suite with coverage once tests exist. |
 | `make run-app` | Launch the Dash web application (placeholder). |
 | `make build-report` | Build static reports (placeholder). |
 | `make benchmark` | Install benchmark extras and run the synthetic benchmark script. |
+| `make api-example` | Start a local FastAPI server and exercise `examples/api_client.py`. |
 | `make clean` | Remove build artifacts and caches. |
 
 Manual equivalents:
@@ -143,13 +145,14 @@ See `docs/notebooks.md` for Colab/local notebook usage.
 #### Demo Dataset
 - Sample inputs live in `sample_data/` (`demo_counts.csv`, `demo_library.csv`, `demo_metadata.json`) and adhere to the contract in `docs/data_contract.md`.
 - Validate your own files (or the sample set) with `python scripts/validate_dataset.py sample_data/demo_counts.csv sample_data/demo_library.csv sample_data/demo_metadata.json --export-samples artifacts/normalized_samples.json`.
+- Templates live under `templates/data_contract/` for counts, library, and metadata stubs with inline comments.
 - Regenerate or customize the synthetic dataset with `python scripts/generate_demo_dataset.py --output-dir sample_data --seed 42`.
 - The demo models a dropout screen with two control and two treatment replicates, highlighting DNA repair genes that deplete under drug selection.
 
 ### Docker Usage
 - Build the image locally:
   ```bash
-  docker build -t crispr-studio .
+  docker build -t crispr-studio .  # uses reports extras; add --build-arg BUILD_NATIVE=1 to compile accelerators
   ```
 - Run the Dash app and mount artifact directories:
   ```bash
@@ -159,6 +162,12 @@ See `docs/notebooks.md` for Colab/local notebook usage.
   ```bash
   docker-compose run --rm worker
   ```
+- The slim runtime exposes ports 8050 (Dash) and 8000 (FastAPI) and runs as a non-root user by default.
+
+## Community
+- Please review the [Code of Conduct](CODE_OF_CONDUCT.md) and [Contributing guide](CONTRIBUTING.md) before opening an issue or PR.
+- Roadmap and help-wanted items live in `docs/roadmap.md` and the GitHub issues board (labelled `help wanted`).
+- Use the supplied issue/PR templates to include sample file paths and repro steps.
 
 ## Troubleshooting & FAQ
 
@@ -175,7 +184,9 @@ See `docs/notebooks.md` for Colab/local notebook usage.
 - `docs/overview.md` – positioning memo and market context for the product build.
 - `docs/demo_runbook.md` – step-by-step instructions for demoing the pipeline.
 - `docs/data_contract.md` – structured expectations for counts, library, and metadata files.
-- `docs/user_guide.md` / `docs/developer_guide.md` – usage tips and architecture notes (draft).
+- `docs/notebooks.md` – Colab/local notebook quickstart and badge.
+- `docs/performance.md` – runtime expectations, cache tips, and how to emit benchmark plots/JSONL.
+- `docs/user_guide.md` / `docs/developer_guide.md` – usage tips and architecture notes.
 - `docs/troubleshooting.md` – quick fixes for common warnings (native fallbacks, annotation batches, cache issues).
 - `docs/runbooks/operations.md` – operational checklist for the JobManager, analytics logs, and OpenAPI exports.
 - `docs/security_privacy.md` / `docs/roadmap.md` – compliance checklist and upcoming milestones.

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 from examples.api_client import SAMPLE_DATA_DIR, build_headers, build_submit_payload
 
 

@@ -371,19 +371,10 @@ def _reports_tab() -> Component:
                                     className="mt-3 ms-2",
                                     disabled=True,
                                 ),
-                                dbc.Button(
-                                    "Download Sample HTML",
-                                    id=ids.BUTTON_DOWNLOAD_SAMPLE_HTML,
-                                    color="secondary",
-                                    outline=True,
-                                    className="mt-3 ms-2",
-                                    disabled=True,
-                                ),
                                 dcc.Download(id=ids.DOWNLOAD_REPORT),
                                 dcc.Download(id=ids.DOWNLOAD_SAMPLE_REPORT),
-                                dcc.Download(id=ids.DOWNLOAD_SAMPLE_HTML),
                                 html.Small(
-                                    "Run `make build-report` to refresh the latest analysis and regenerate the showcase bundle.",
+                                    "A bundled sample report ships with the app; run `make build-report` to refresh the latest analysis and regenerate the full bundle.",
                                     className="muted mt-3 d-block",
                                 ),
                             ]

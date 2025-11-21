@@ -310,5 +310,130 @@ def test_pipeline_settings_toggle_passthrough(dash_duo, tmp_path, monkeypatch):
     assert settings_obj.enrichr_libraries == ["native_demo"]
     assert settings_obj.cache_annotations is False
 
+
+@pytest.mark.dash
+def test_rerun_button_reuses_last_run(dash_duo, tmp_path, monkeypatch):
+    artifacts_dir = tmp_path / "artifacts"
+    uploads_dir = tmp_path / "uploads"
+    logs_dir = tmp_path / "logs"
+    artifacts_dir.mkdir()
+    uploads_dir.mkdir()
+    logs_dir.mkdir()
+
+    counts_path = tmp_path / "counts.csv"
+    pd.DataFrame(
+        {
+            "guide_id": ["g1", "g2"],
+            "CTRL1": [100, 120],
+            "TREAT1": [80, 60],
+        }
+    ).to_csv(counts_path, index=False)
+
+    library_path = tmp_path / "library.csv"
+    pd.DataFrame(
+        {
+            "guide_id": ["g1", "g2"],
+            "gene_symbol": ["GENE1", "GENE2"],
+        }
+    ).to_csv(library_path, index=False)
+
+    metadata_path = tmp_path / "metadata.json"
+    metadata_path.write_text(
+        json.dumps(
+            {
+                "experiment_name": "Rerun Test",
+                "samples": [
+                    {"sample_id": "CTRL1", "condition": "control", "replicate": "1", "role": "control", "file_column": "CTRL1"},
+                    {"sample_id": "TREAT1", "condition": "treatment", "replicate": "1", "role": "treatment", "file_column": "TREAT1"},
+                ],
+                "analysis": {"fdr_threshold": 0.1},
+            },
+            indent=2,
+        )
+    )
+
+    call_log: Dict[str, list] = {"settings": [], "runs": []}
+
+    def _fake_run_analysis(config, paths, settings):
+        call_log["settings"].append(settings)
+        summary = AnalysisSummary(
+            total_guides=2,
+            total_genes=2,
+            significant_genes=1,
+            runtime_seconds=1.0,
+            screen_type=ScreenType.DROPOUT,
+            scoring_method=ScoringMethod.RRA,
+        )
+        gene = GeneResult(gene_symbol="GENE1", score=4.2, log2_fold_change=-1.1, fdr=0.02, rank=1, n_guides=2, guides=[])
+        result = AnalysisResult(
+            config=config,
+            summary=summary,
+            gene_results=[gene],
+            qc_metrics=[],
+            qc_flags=[],
+            narratives=[],
+            artifacts={"raw_counts": str(counts_path)},
+            warnings=[],
+        )
+        run_dir = artifacts_dir / f"20240202_02020{len(call_log['runs'])}"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        analysis_json = run_dir / "analysis_result.json"
+        analysis_json.write_text(json.dumps(result.model_dump(mode="json"), indent=2))
+        pipeline_settings_path = run_dir / "pipeline_settings.json"
+        pipeline_settings_path.write_text(
+            json.dumps(
+                {
+                    "use_mageck": settings.use_mageck,
+                    "use_native_rra": settings.use_native_rra,
+                    "use_native_enrichment": settings.use_native_enrichment,
+                    "enrichr_libraries": list(settings.enrichr_libraries or []),
+                    "skip_annotations": not settings.cache_annotations,
+                },
+                indent=2,
+            )
+        )
+        result.artifacts.update(
+            {
+                "analysis_result": str(analysis_json),
+                "input_counts": str(counts_path),
+                "input_library": str(library_path),
+                "input_metadata": str(metadata_path),
+            }
+        )
+        call_log["runs"].append(result)
+        return result
+
+    monkeypatch.setenv("CRISPR_STUDIO__ARTIFACTS_DIR", str(artifacts_dir))
+    monkeypatch.setenv("CRISPR_STUDIO__UPLOADS_DIR", str(uploads_dir))
+    monkeypatch.setenv("CRISPR_STUDIO__LOGS_DIR", str(logs_dir))
+
+    import crispr_screen_expert.app.callbacks as callbacks
+    import crispr_screen_expert.app.layout as layout
+    import crispr_screen_expert.app as app_module
+
+    reload(callbacks)
+    reload(layout)
+    reload(app_module)
+    monkeypatch.setattr(callbacks, "run_analysis", _fake_run_analysis)
+
+    app = app_module.create_app()
+    dash_duo.start_server(app)
+
+    dash_duo.wait_for_element("#upload-counts input[type='file']").send_keys(str(counts_path))
+    dash_duo.wait_for_element("#upload-library input[type='file']").send_keys(str(library_path))
+    dash_duo.wait_for_element("#upload-metadata input[type='file']").send_keys(str(metadata_path))
+
+    dash_duo.find_element("#button-run-analysis").click()
+    dash_duo.wait_for_text_to_equal("#job-status-text", "Analysis complete")
+
+    dash_duo.wait_for_condition(lambda: dash_duo.find_element("#button-rerun-last").get_attribute("disabled") is None)
+    dash_duo.find_element("#button-rerun-last").click()
+    dash_duo.wait_for_text_to_equal("#job-status-text", "Analysis complete")
+
+    assert len(call_log["runs"]) == 2
+    assert call_log["runs"][1].artifacts["input_counts"] == str(counts_path)
+    assert dash_duo.find_element("#qc-correlation-help")
+    assert dash_duo.find_element("#job-status-warning-help")
+
     dash_duo.find_element("#button-rerun-last").click()
     dash_duo.wait_for_text_contains("#job-status-text", "Analysis")

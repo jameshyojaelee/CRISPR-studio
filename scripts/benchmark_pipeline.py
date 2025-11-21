@@ -83,6 +83,11 @@ def parse_args() -> argparse.Namespace:
         help="Synthetic dataset to benchmark (default: small).",
     )
     parser.add_argument(
+        "--all-sizes",
+        action="store_true",
+        help="Benchmark all dataset sizes (small, medium, large) in one run.",
+    )
+    parser.add_argument(
         "--repeat",
         type=int,
         default=3,
@@ -90,9 +95,14 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--jsonl",
+        action="store_true",
+        help="Write per-run metrics to runs.jsonl in the benchmark output directory.",
+    )
+    parser.add_argument(
+        "--jsonl-path",
         type=Path,
         default=None,
-        help="Optional path to append per-run metrics as JSONL.",
+        help="Override the JSONL output path (defaults to artifacts/benchmarks/<timestamp>/runs.jsonl).",
     )
     parser.add_argument(
         "--plot",
@@ -469,12 +479,12 @@ def render_markdown(payload: Dict[str, object]) -> str:
 
     emit_rows("Python", python_summary["runs"])
     if native_summary:
-    emit_rows("Native", native_summary["runs"])
+        emit_rows("Native", native_summary["runs"])
 
     return "\n".join(lines)
 
 
-def write_runtime_plot(report_dir: Path, spec: DatasetSpec, points: List[Dict[str, float]]) -> Optional[Path]:
+def write_runtime_plot(report_dir: Path, points: List[Dict[str, object]]) -> Optional[Path]:
     if not points:
         return None
     df = pd.DataFrame(points)
@@ -484,7 +494,7 @@ def write_runtime_plot(report_dir: Path, spec: DatasetSpec, points: List[Dict[st
         y="runtime_seconds",
         color="backend",
         markers=True,
-        hover_data=["dataset", "backend"],
+        hover_data=["dataset", "backend", "replicates"],
         title="Runtime vs dataset size",
     )
     fig.update_layout(xaxis_title="Guides", yaxis_title="Mean runtime (s)")
@@ -495,90 +505,105 @@ def write_runtime_plot(report_dir: Path, spec: DatasetSpec, points: List[Dict[st
 
 def main() -> None:
     args = parse_args()
-    spec, data_paths, config = ensure_dataset(args.dataset_size)
-
+    sizes = list(DATASET_SPECS.keys()) if args.all_sizes else [args.dataset_size]
     RUN_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-
-    jsonl_path: Optional[Path] = args.jsonl
-    repeats = max(args.repeat, 1)
-
-    python_summary, python_result = run_backend_benchmark(
-        spec,
-        config,
-        data_paths,
-        repeats,
-        use_native_rra=False,
-        jsonl_path=jsonl_path,
-        backend_label="python",
-    )
-    plot_points = [
-        {
-            "backend": "python",
-            "runtime_seconds": python_summary["mean_runtime_seconds"],
-            "guides": spec.guides,
-            "dataset": spec.name,
-        }
-    ]
-
-    native_requested = args.use_native_rra
-    if native_requested is None:
-        native_requested = native_rra.is_available()
-
-    native_summary: Optional[Dict[str, object]] = None
-    native_result: Optional[object] = None
-
-    if native_requested:
-        if native_rra.is_available():
-            native_summary, native_result = run_backend_benchmark(
-                spec,
-                config,
-                data_paths,
-                repeats,
-                use_native_rra=True,
-                jsonl_path=jsonl_path,
-                backend_label="native",
-            )
-        else:
-            print("Native backend unavailable — skipping native benchmark.")
-
-    parity_info: Optional[Dict[str, object]] = None
-    if native_result is not None:
-        parity_info = compare_results(python_result, native_result)
-
     timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    report_dir = ARTIFACT_ROOT / timestamp
-    write_report(
-        report_dir,
-        timestamp,
-        spec,
-        repeats,
-        python_summary,
-        native_summary,
-        parity_info,
-    )
-    if native_summary:
+    benchmark_root = ARTIFACT_ROOT / timestamp
+    benchmark_root.mkdir(parents=True, exist_ok=True)
+
+    repeats = max(args.repeat, 1)
+    jsonl_path: Optional[Path] = args.jsonl_path or (benchmark_root / "runs.jsonl" if args.jsonl else None)
+    plot_points: List[Dict[str, object]] = []
+
+    for size in sizes:
+        spec, data_paths, config = ensure_dataset(size)
+
+        python_summary, python_result = run_backend_benchmark(
+            spec,
+            config,
+            data_paths,
+            repeats,
+            use_native_rra=False,
+            jsonl_path=jsonl_path,
+            backend_label="python",
+        )
         plot_points.append(
             {
-                "backend": "native",
-                "runtime_seconds": native_summary["mean_runtime_seconds"],
+                "backend": "python",
+                "runtime_seconds": python_summary["mean_runtime_seconds"],
                 "guides": spec.guides,
                 "dataset": spec.name,
+                "replicates": spec.replicates,
             }
         )
-    if args.plot:
-        write_runtime_plot(report_dir, spec, plot_points)
 
-    print(f"Dataset: {spec.name} (guides={spec.guides:,}, replicates={spec.replicates})")
-    print(f"Python mean runtime: {python_summary['mean_runtime_seconds']:.4f}s")
-    if native_summary:
-        speedup = python_summary['mean_runtime_seconds'] / native_summary['mean_runtime_seconds'] if native_summary['mean_runtime_seconds'] else float('nan')
-        print(f"Native mean runtime: {native_summary['mean_runtime_seconds']:.4f}s (speedup {speedup:.2f}×)")
-        if parity_info:
-            status = "passed" if parity_info.get("matched") else "FAILED"
-            print(f"Parity check: {status} (max |Δ| = {parity_info.get('max_abs_delta_overall', float('nan')):.2e})")
-    else:
-        print("Native backend not benchmarked.")
-    print(f"Benchmark artifacts written to {report_dir}")
+        native_requested = args.use_native_rra
+        if native_requested is None:
+            native_requested = native_rra.is_available()
+
+        native_summary: Optional[Dict[str, object]] = None
+        native_result: Optional[object] = None
+
+        if native_requested:
+            if native_rra.is_available():
+                native_summary, native_result = run_backend_benchmark(
+                    spec,
+                    config,
+                    data_paths,
+                    repeats,
+                    use_native_rra=True,
+                    jsonl_path=jsonl_path,
+                    backend_label="native",
+                )
+            else:
+                print("Native backend unavailable — skipping native benchmark.")
+
+        parity_info: Optional[Dict[str, object]] = None
+        if native_result is not None:
+            parity_info = compare_results(python_result, native_result)
+
+        report_dir = benchmark_root / spec.name
+        write_report(
+            report_dir,
+            timestamp,
+            spec,
+            repeats,
+            python_summary,
+            native_summary,
+            parity_info,
+        )
+        if native_summary:
+            plot_points.append(
+                {
+                    "backend": "native",
+                    "runtime_seconds": native_summary["mean_runtime_seconds"],
+                    "guides": spec.guides,
+                    "dataset": spec.name,
+                    "replicates": spec.replicates,
+                }
+            )
+
+        print(f"Dataset: {spec.name} (guides={spec.guides:,}, replicates={spec.replicates})")
+        print(f"Python mean runtime: {python_summary['mean_runtime_seconds']:.4f}s")
+        if native_summary:
+            speedup = (
+                python_summary['mean_runtime_seconds'] / native_summary['mean_runtime_seconds']
+                if native_summary['mean_runtime_seconds']
+                else float('nan')
+            )
+            print(f"Native mean runtime: {native_summary['mean_runtime_seconds']:.4f}s (speedup {speedup:.2f}×)")
+            if parity_info:
+                status = "passed" if parity_info.get("matched") else "FAILED"
+                print(f"Parity check: {status} (max |Δ| = {parity_info.get('max_abs_delta_overall', float('nan')):.2e})")
+        else:
+            print("Native backend not benchmarked.")
+        print(f"Benchmark artifacts written to {report_dir}")
+
+    if args.plot:
+        write_runtime_plot(benchmark_root, plot_points)
+
+    if jsonl_path:
+        print(f"Per-run metrics appended to {jsonl_path}")
 
 
 if __name__ == "__main__":

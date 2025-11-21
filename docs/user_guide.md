@@ -32,6 +32,10 @@ Run `crispr-studio --help` to view commands. Common workflows:
   ```bash
   crispr-studio run-pipeline sample_data/demo_counts.csv sample_data/demo_library.csv sample_data/demo_metadata.json --enrichr-libraries Reactome_2022
   ```
+- Offline validation with actionable hints and a normalized sample manifest:
+  ```bash
+  python scripts/validate_dataset.py sample_data/demo_counts.csv sample_data/demo_library.csv sample_data/demo_metadata.json --export-samples artifacts/normalized_samples.json
+  ```
 - Run with native accelerators (requires the native modules to be built):
   ```bash
   crispr-studio run-pipeline sample_data/demo_counts.csv sample_data/demo_library.csv sample_data/demo_metadata.json --use-native-rra --use-native-enrichment --enrichr-libraries native_demo
@@ -76,7 +80,7 @@ Set `CRISPR_STUDIO_USE_NATIVE_RRA=1` and/or `CRISPR_STUDIO_USE_NATIVE_ENRICHMENT
    - **Results** tab: summary cards, volcano plot, interactive gene table (select a row to view annotations in the modal).
    - **QC** tab: replicate correlation and detection heatmap with thresholds. Hover the info badges for remediation hints; CRITICAL/WARNING badges are de-duplicated before display.
    - **Pathways** tab: bubble chart summarising Enrichr/GSEA output.
-   - **Reports** tab: download an HTML summary or the bundled sample preview; PDF export requires the reports extra (`pip install .[reports]`).
+   - **Reports** tab: download an HTML summary or the bundled sample preview; PDF export requires the reports extra (`pip install .[reports]`). A bundled sample HTML report is always available under `artifacts/sample_report/`.
 
 ## Interpreting Metrics
 

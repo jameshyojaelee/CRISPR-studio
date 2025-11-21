@@ -136,6 +136,26 @@ PY
         run: |
           mkdocs build --strict || echo "Docs build not yet configured; skipping"
 
+  benchmarks:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .[benchmark]
+      - name: Run small benchmark
+        run: python scripts/benchmark_pipeline.py --dataset-size small --repeat 1 --jsonl --plot
+      - name: Upload benchmark artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-artifacts
+          path: artifacts/benchmarks/**
+
   benchmark-json:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest

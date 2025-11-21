@@ -1,47 +1,55 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
   <title>CRISPR-studio Sample Report</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #0c1021; color: #e5e9f0; padding: 2rem; }
+    body { font-family: Arial, sans-serif; margin: 2rem; background: #0b1021; color: #e5e7eb; }
     h1 { color: #7f5af0; }
-    section { margin-bottom: 1.5rem; }
-    .cards { display: flex; gap: 1rem; }
-    .card { background: #11162a; padding: 1rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-    code { background: #1b2035; padding: 0.2rem 0.4rem; border-radius: 4px; }
+    .card { background: #11172c; border-radius: 10px; padding: 1.5rem; margin-bottom: 1rem; box-shadow: 0 8px 20px rgba(0,0,0,0.35); }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { padding: 0.5rem 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    th { text-align: left; color: #cdd9ff; }
+    .badge { display: inline-block; padding: 0.25rem 0.6rem; border-radius: 999px; background: #1f2937; color: #cdd9ff; font-size: 0.85rem; margin-right: 0.35rem; }
   </style>
 </head>
 <body>
-  <h1>CRISPR-studio Sample Report</h1>
-  <p>This lightweight HTML preview ships with the repository for offline demos. Run <code>make build-report</code> to regenerate a full report from the latest analysis.</p>
+  <h1>CRISPR-studio — Sample HTML Report</h1>
+  <p>This lightweight report is bundled with the app for demo downloads. Generate a full report via <code>make build-report</code> to include volcano plots, QC metrics, and narrative summaries.</p>
 
-  <section class="cards">
-    <div class="card">
-      <h3>Experiment</h3>
-      <p>Demo dropout screen (sample_data)</p>
-    </div>
-    <div class="card">
-      <h3>Runtime</h3>
-      <p>&lt; 2 minutes (Python only, annotations skipped)</p>
-    </div>
-    <div class="card">
-      <h3>Significant Genes</h3>
-      <p>11 (FDR &lt; 0.1)</p>
-    </div>
-  </section>
-
-  <section>
-    <h3>What to expect</h3>
+  <div class="card">
+    <h2>Run Summary</h2>
+    <div class="badge">Demo dataset</div>
+    <div class="badge">Python pipeline</div>
+    <div class="badge">MAGeCK off</div>
     <ul>
-      <li>QC metrics with severity badges and remediation hints.</li>
-      <li>Volcano plot, gene leaderboard, and pathway bubbles.</li>
-      <li>Deduplicated warning summaries for the Dash UI.</li>
+      <li>Significant genes: 8 (FDR &lt; 0.1)</li>
+      <li>Runtime: 12.4 s on laptop CPU</li>
+      <li>Annotations: skipped (offline-friendly)</li>
     </ul>
-  </section>
+  </div>
 
-  <section>
-    <p>For a richer artifact bundle (HTML + PDF), generate a fresh run and download it from the Dash Reporting Studio tab.</p>
-  </section>
+  <div class="card">
+    <h2>Top Hits</h2>
+    <table>
+      <thead>
+        <tr><th>Gene</th><th>Score</th><th>FDR</th><th>log2FC</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>GENE1</td><td>5.10</td><td>0.012</td><td>-1.35</td></tr>
+        <tr><td>GENE2</td><td>4.42</td><td>0.018</td><td>-1.10</td></tr>
+        <tr><td>GENE3</td><td>3.87</td><td>0.026</td><td>-0.95</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>QC Highlights</h2>
+    <ul>
+      <li>Replicate correlations: 0.93–0.95 (OK)</li>
+      <li>Guide detection: 98.5% observed (minor warnings only)</li>
+      <li>Annotation batch warm cache: MyGene fetch skipped in this sample</li>
+    </ul>
+  </div>
 </body>
 </html>

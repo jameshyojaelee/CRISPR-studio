@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 from typing import Callable, Dict, List
 
-import pytest
 import requests
 
 from crispr_screen_expert import annotations as annotations_module

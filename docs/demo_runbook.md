@@ -8,16 +8,16 @@
 - [ ] Confirm the CLI run completes without the "Quality control checks failed" gate; if it appears, open `qc_metrics.json` and resolve the flagged issues before presenting.
 - [ ] Install extras ahead of time if needed: `pip install .[reports]` for PDF export and `pip install .[benchmark]` before showing the runtime benchmark script.
 - [ ] Launch Dash (`python app.py`) two minutes before presentation.
-- [ ] Open artifacts directory and confirm latest run exists.
+- [ ] Open artifacts directory and confirm latest run exists; ensure the sample report preview renders (`resources/sample_report/sample_report.html` or `make build-report`).
 - [ ] Disable LLM narratives unless OpenAI quota confirmed.
 
 ## Live Script (3 Minutes)
 1. **Intro (20s)** – "CRISPR-studio automates pooled CRISPR screen analysis end-to-end." Show Upload tab with files pre-loaded.
 2. **Configuration (20s)** – Highlight metadata summary, FDR threshold, and the toggles for MAGeCK vs RRA, native RRA/enrichment, and "Skip annotations" for offline demos.
-3. **Run Analysis (10s)** – Trigger Run Analysis (background job) but mention results precomputed.
+3. **Run Analysis (10s)** – Trigger Run Analysis (background job) or tap **Rerun Last Dataset** to reuse cached uploads; mention results are precomputed.
 4. **Results Tour (60s)** – Volcano plot, summary cards, click BRCA2 to open modal. Highlight the run history rail on the right for instant reloads and the richer gene modal (sparkline + badges).
-5. **QC & Pathways (40s)** – Flip to QC tab (replicate correlation badge), then Pathways bubble chart showing DNA damage pathways.
-6. **Report (20s)** – Download HTML report, note shareable artifact.
+5. **QC & Pathways (40s)** – Flip to QC tab (hover the info badges for remediation hints), then Pathways bubble chart showing DNA damage pathways.
+6. **Report (20s)** – Download HTML report or the bundled sample preview; note shareable artifact.
 7. **Conclusion (10s)** – Mention CLI + Docker support, native fallbacks that emit de-duplicated warnings, and invite questions.
 
 ## Backup Plan
