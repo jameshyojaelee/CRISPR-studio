@@ -48,7 +48,7 @@ def load_counts(path: Path) -> pd.DataFrame:
 
     delimiter = _detect_delimiter(path)
     try:
-        df = pd.read_csv(path, sep=delimiter, dtype={"guide_id": str})
+        df = pd.read_csv(path, sep=delimiter, dtype={"guide_id": str}, comment="#")
     except ParserError as exc:
         details = exc.args[0] if exc.args else str(exc)
         raise DataContractError(f"Counts file appears malformed ({details}).") from exc
@@ -57,6 +57,11 @@ def load_counts(path: Path) -> pd.DataFrame:
 
     if "guide_id" not in df.columns:
         raise DataContractError("Counts file must include a 'guide_id' column.")
+
+    duplicate_columns = [col for col in df.columns[df.columns.duplicated()] if col != "guide_id"]
+    if duplicate_columns:
+        dup_list = ", ".join(sorted(set(duplicate_columns)))
+        raise DataContractError(f"Counts file contains duplicate sample columns: {dup_list}")
 
     if df["guide_id"].duplicated().any():
         raise DataContractError("Duplicate guide_id entries detected in counts file.")
@@ -97,7 +102,7 @@ def load_library(path: Path) -> pd.DataFrame:
         raise DataContractError(f"Library file not found: {path}")
 
     try:
-        df = pd.read_csv(path, dtype={"guide_id": str, "gene_symbol": str})
+        df = pd.read_csv(path, dtype={"guide_id": str, "gene_symbol": str}, comment="#")
     except Exception as exc:
         raise DataContractError(f"Failed to parse library file {path}: {exc}") from exc
 

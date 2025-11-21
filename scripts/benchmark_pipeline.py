@@ -16,6 +16,7 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+import plotly.express as px
 
 try:
     import psutil
@@ -50,6 +51,29 @@ DATASET_SPECS: Dict[str, DatasetSpec] = {
 }
 
 
+def append_jsonl_record(
+    path: Optional[Path],
+    backend: str,
+    run_index: int,
+    spec: DatasetSpec,
+    metrics: Dict[str, float],
+) -> None:
+    """Append a JSONL record for a single run."""
+    if path is None:
+        return
+    record = {
+        "backend": backend,
+        "run_index": run_index,
+        "dataset": spec.name,
+        "guides": spec.guides,
+        "replicates": spec.replicates,
+        **metrics,
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record) + "\n")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark CRISPR-studio pipeline on synthetic datasets.")
     parser.add_argument(
@@ -63,6 +87,17 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=3,
         help="Number of repetitions per backend to average metrics (default: 3).",
+    )
+    parser.add_argument(
+        "--jsonl",
+        type=Path,
+        default=None,
+        help="Optional path to append per-run metrics as JSONL.",
+    )
+    parser.add_argument(
+        "--plot",
+        action="store_true",
+        help="Write a runtime_vs_size.html plot alongside the summary JSON.",
     )
     parser.add_argument(
         "--use-native-rra",
@@ -239,18 +274,22 @@ def summarise_runs(runs: List[Dict[str, float]]) -> Dict[str, float]:
 
 
 def run_backend_benchmark(
+    spec: DatasetSpec,
     config: ExperimentConfig,
     data_paths: DataPaths,
     repeats: int,
     use_native_rra: bool,
+    jsonl_path: Optional[Path] = None,
+    backend_label: str = "python",
 ) -> Tuple[Dict[str, object], object]:
     process = psutil.Process()
     runs: List[Dict[str, float]] = []
     first_result: Optional[object] = None
 
-    for _ in range(repeats):
+    for idx in range(repeats):
         metrics, result = run_single_benchmark(config, data_paths, use_native_rra, process)
         runs.append(metrics)
+        append_jsonl_record(jsonl_path, backend_label, idx + 1, spec, metrics)
         if first_result is None:
             first_result = result
 
@@ -430,9 +469,28 @@ def render_markdown(payload: Dict[str, object]) -> str:
 
     emit_rows("Python", python_summary["runs"])
     if native_summary:
-        emit_rows("Native", native_summary["runs"])
+    emit_rows("Native", native_summary["runs"])
 
     return "\n".join(lines)
+
+
+def write_runtime_plot(report_dir: Path, spec: DatasetSpec, points: List[Dict[str, float]]) -> Optional[Path]:
+    if not points:
+        return None
+    df = pd.DataFrame(points)
+    fig = px.line(
+        df,
+        x="guides",
+        y="runtime_seconds",
+        color="backend",
+        markers=True,
+        hover_data=["dataset", "backend"],
+        title="Runtime vs dataset size",
+    )
+    fig.update_layout(xaxis_title="Guides", yaxis_title="Mean runtime (s)")
+    plot_path = report_dir / "runtime_vs_size.html"
+    fig.write_html(plot_path)
+    return plot_path
 
 
 def main() -> None:
@@ -441,9 +499,26 @@ def main() -> None:
 
     RUN_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+    jsonl_path: Optional[Path] = args.jsonl
     repeats = max(args.repeat, 1)
 
-    python_summary, python_result = run_backend_benchmark(config, data_paths, repeats, use_native_rra=False)
+    python_summary, python_result = run_backend_benchmark(
+        spec,
+        config,
+        data_paths,
+        repeats,
+        use_native_rra=False,
+        jsonl_path=jsonl_path,
+        backend_label="python",
+    )
+    plot_points = [
+        {
+            "backend": "python",
+            "runtime_seconds": python_summary["mean_runtime_seconds"],
+            "guides": spec.guides,
+            "dataset": spec.name,
+        }
+    ]
 
     native_requested = args.use_native_rra
     if native_requested is None:
@@ -454,7 +529,15 @@ def main() -> None:
 
     if native_requested:
         if native_rra.is_available():
-            native_summary, native_result = run_backend_benchmark(config, data_paths, repeats, use_native_rra=True)
+            native_summary, native_result = run_backend_benchmark(
+                spec,
+                config,
+                data_paths,
+                repeats,
+                use_native_rra=True,
+                jsonl_path=jsonl_path,
+                backend_label="native",
+            )
         else:
             print("Native backend unavailable — skipping native benchmark.")
 
@@ -473,6 +556,17 @@ def main() -> None:
         native_summary,
         parity_info,
     )
+    if native_summary:
+        plot_points.append(
+            {
+                "backend": "native",
+                "runtime_seconds": native_summary["mean_runtime_seconds"],
+                "guides": spec.guides,
+                "dataset": spec.name,
+            }
+        )
+    if args.plot:
+        write_runtime_plot(report_dir, spec, plot_points)
 
     print(f"Dataset: {spec.name} (guides={spec.guides:,}, replicates={spec.replicates})")
     print(f"Python mean runtime: {python_summary['mean_runtime_seconds']:.4f}s")

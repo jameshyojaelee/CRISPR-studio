@@ -1,7 +1,7 @@
 PYTHON ?= python3.11
 PACKAGE := crispr_screen_expert
 
-.PHONY: install lint format test run-app build-report benchmark clean api-example
+.PHONY: install lint lint-fix format test run-app build-report benchmark clean api-example
 
 install:
 	$(PYTHON) -m pip install --upgrade pip
@@ -12,6 +12,9 @@ lint:
 	mypy src
 
 format:
+	ruff check --fix .
+
+lint-fix:
 	ruff check --fix .
 
 test:

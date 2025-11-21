@@ -130,6 +130,19 @@ def _ensure_output_dir(root: Path) -> Path:
     return output_dir
 
 
+def _persist_input(path: Path, output_dir: Path, name: str) -> Path:
+    """Copy input files into the output directory for reproducibility."""
+    target = output_dir / name
+    try:
+        if path.resolve() == target.resolve():
+            return path
+        target.write_bytes(path.read_bytes())
+        return target
+    except Exception:  # pragma: no cover - best-effort copy
+        logger.warning("Failed to persist %s for reruns", path)
+        return path
+
+
 def _prepare_mageck_input(
     counts: pd.DataFrame,
     library: pd.DataFrame,
@@ -282,6 +295,8 @@ def run_analysis(
             payload.update(extra)
         log_event("analysis_failed", payload)
 
+    artifacts: Dict[str, str] = {}
+
     try:
         if config is None:
             if paths.metadata is None:
@@ -292,6 +307,12 @@ def run_analysis(
         counts = load_counts(paths.counts)
         library = load_library(paths.library)
         metadata = config
+
+        # Persist pristine inputs for reruns and UI downloads.
+        artifacts["input_counts"] = str(_persist_input(Path(paths.counts), output_dir, "input_counts.csv"))
+        artifacts["input_library"] = str(_persist_input(Path(paths.library), output_dir, "input_library.csv"))
+        if paths.metadata:
+            artifacts["input_metadata"] = str(_persist_input(Path(paths.metadata), output_dir, "input_metadata.json"))
     except DataContractError as exc:
         _log_failure("data_contract_error", error=exc)
         raise
@@ -318,7 +339,6 @@ def run_analysis(
     counts_cpm = normalize_counts_cpm(counts)
     log2fc = compute_log2_fold_change(counts_cpm, metadata)
     gene_df: Optional[pd.DataFrame] = None
-    artifacts: Dict[str, str] = {}
     raw_counts_path = output_dir / "raw_counts.csv"
     counts.to_csv(raw_counts_path, index_label="guide_id")
     artifacts["raw_counts"] = str(raw_counts_path)

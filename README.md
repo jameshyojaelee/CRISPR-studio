@@ -142,6 +142,7 @@ See `docs/notebooks.md` for Colab/local notebook usage.
 
 #### Demo Dataset
 - Sample inputs live in `sample_data/` (`demo_counts.csv`, `demo_library.csv`, `demo_metadata.json`) and adhere to the contract in `docs/data_contract.md`.
+- Validate your own files (or the sample set) with `python scripts/validate_dataset.py sample_data/demo_counts.csv sample_data/demo_library.csv sample_data/demo_metadata.json --export-samples artifacts/normalized_samples.json`.
 - Regenerate or customize the synthetic dataset with `python scripts/generate_demo_dataset.py --output-dir sample_data --seed 42`.
 - The demo models a dropout screen with two control and two treatment replicates, highlighting DNA repair genes that deplete under drug selection.
 

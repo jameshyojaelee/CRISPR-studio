@@ -275,10 +275,17 @@ def test_pipeline_settings_toggle_passthrough(dash_duo, tmp_path, monkeypatch):
     app = app_module.create_app()
     dash_duo.start_server(app)
 
+    rerun_button = dash_duo.find_element("#button-rerun-last")
+    assert rerun_button.get_property("disabled") is True
+    assert dash_duo.find_element("#qc-correlation-help")
+    assert dash_duo.find_element("#qc-detection-help")
+
     dash_duo.wait_for_element("#upload-counts input[type='file']").send_keys(str(counts_path))
     dash_duo.wait_for_element("#upload-library input[type='file']").send_keys(str(library_path))
     dash_duo.wait_for_element("#upload-metadata input[type='file']").send_keys(str(metadata_path))
     dash_duo.wait_for_text_contains("#upload-status", "Metadata uploaded")
+
+    dash_duo.wait_for_condition(lambda: dash_duo.find_element("#button-rerun-last").get_property("disabled") is False)
 
     dash_duo.find_element("input#switch-use-mageck").click()
     dash_duo.find_element("input#switch-native-rra").click()
@@ -302,3 +309,6 @@ def test_pipeline_settings_toggle_passthrough(dash_duo, tmp_path, monkeypatch):
     assert settings_obj.use_native_enrichment is True
     assert settings_obj.enrichr_libraries == ["native_demo"]
     assert settings_obj.cache_annotations is False
+
+    dash_duo.find_element("#button-rerun-last").click()
+    dash_duo.wait_for_text_contains("#job-status-text", "Analysis")

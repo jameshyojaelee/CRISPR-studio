@@ -40,6 +40,9 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 JOB_MANAGER = JobManager(max_workers=2)
 RESULT_CACHE: Dict[str, Dict[str, Any]] = {}
 CACHE_LOCK = threading.Lock()
+SAMPLE_REPORT_SOURCE = Path("resources/sample_report/sample_report.html")
+SAMPLE_REPORT_DEST = Path("artifacts/sample_report/sample_report.html")
+SAMPLE_BUNDLE_PATH = Path("artifacts/sample_report/crispr_studio_report_bundle.zip")
 
 
 def _coerce_bool(value: Any, default: bool) -> bool:
@@ -255,6 +258,17 @@ def _build_dash_payload(result: AnalysisResult, counts_source: Path) -> Dict[str
     return payload
 
 
+def _ensure_sample_report() -> Optional[Path]:
+    """Make sure a sample HTML report exists under artifacts for download."""
+    if SAMPLE_REPORT_DEST.exists():
+        return SAMPLE_REPORT_DEST
+    if SAMPLE_REPORT_SOURCE.exists():
+        SAMPLE_REPORT_DEST.parent.mkdir(parents=True, exist_ok=True)
+        SAMPLE_REPORT_DEST.write_text(SAMPLE_REPORT_SOURCE.read_text())
+        return SAMPLE_REPORT_DEST
+    return None
+
+
 def _list_recent_runs(limit: int = 5) -> List[Dict[str, Any]]:
     root = SETTINGS.artifacts_dir
     runs: List[Dict[str, Any]] = []
@@ -281,6 +295,11 @@ def _list_recent_runs(limit: int = 5) -> List[Dict[str, Any]]:
             "warnings": data.get("warnings", []),
             "label": f"{config.get('experiment_name', 'Untitled')} — {_format_timestamp(run_dir.name)}",
         }
+        artifacts = data.get("artifacts", {}) or {}
+        run_info["artifacts"] = artifacts
+        inputs = {key: artifacts.get(key) for key in ("input_counts", "input_library", "input_metadata")}
+        if any(inputs.values()):
+            run_info["inputs"] = inputs
         settings = _load_run_settings(run_dir)
         if settings:
             run_info["settings"] = settings
@@ -427,6 +446,12 @@ def _dataset_key(*paths: Path, settings_fingerprint: Optional[str] = None) -> st
     return "|".join(parts)
 
 
+def _find_sample_report() -> Optional[Path]:
+    if SAMPLE_BUNDLE_PATH.exists():
+        return SAMPLE_BUNDLE_PATH
+    return _ensure_sample_report()
+
+
 def _run_pipeline_job(
     counts_path: Path,
     library_path: Path,
@@ -529,27 +554,53 @@ def register_callbacks(app: Dash) -> None:
         Output(ids.STORE_JOB, "data"),
         Output(ids.INTERVAL_JOB, "disabled"),
         Input(ids.BUTTON_RUN_ANALYSIS, "n_clicks"),
+        Input(ids.BUTTON_RERUN_LAST, "n_clicks"),
         State(ids.STORE_CONFIG, "data"),
         State(ids.STORE_PIPELINE_SETTINGS, "data"),
+        State(ids.STORE_HISTORY, "data"),
         prevent_initial_call=True,
     )
-    def start_pipeline_job(n_clicks, config_store, settings_store):
-        if not config_store:
+    def start_pipeline_job(_run_clicks, _rerun_clicks, config_store, settings_store, history_store):
+        triggered = callback_context.triggered_id
+        if triggered not in {ids.BUTTON_RUN_ANALYSIS, ids.BUTTON_RERUN_LAST}:
             raise dash.exceptions.PreventUpdate
+        counts_path: Optional[Path] = None
+        library_path: Optional[Path] = None
+        metadata_path: Optional[Path] = None
+        config_payload: Optional[Dict[str, Any]] = None
+        settings_data: Dict[str, Any] = _normalise_settings_data(settings_store)
 
-        counts_path = Path(config_store.get("counts_path", ""))
-        library_path = Path(config_store.get("library_path", ""))
-        metadata_path = Path(config_store.get("metadata_path", ""))
+        if triggered == ids.BUTTON_RERUN_LAST:
+            if not history_store or not history_store.get("runs"):
+                raise dash.exceptions.PreventUpdate
+            last_run = history_store.get("latest") or history_store["runs"][0]
+            inputs = last_run.get("inputs") or {}
+            counts_path = Path(inputs.get("input_counts", inputs.get("counts", "")))
+            library_path = Path(inputs.get("input_library", inputs.get("library", "")))
+            metadata_value = inputs.get("input_metadata") or inputs.get("metadata")
+            metadata_path = Path(metadata_value) if metadata_value else None
+            config_payload = last_run.get("config")
+            if last_run.get("settings"):
+                settings_data = _normalise_settings_data(last_run["settings"])
+        else:
+            if not config_store:
+                raise dash.exceptions.PreventUpdate
+            counts_path = Path(config_store.get("counts_path", ""))
+            library_path = Path(config_store.get("library_path", ""))
+            metadata_path = Path(config_store.get("metadata_path", ""))
+            config_payload = config_store.get("config")
+
+        if not (counts_path and library_path and metadata_path):
+            raise dash.exceptions.PreventUpdate
         if not (counts_path.exists() and library_path.exists() and metadata_path.exists()):
             raise dash.exceptions.PreventUpdate
 
-        settings_data = _normalise_settings_data(settings_store)
         job_id = JOB_MANAGER.submit(
             _run_pipeline_job,
             counts_path,
             library_path,
             metadata_path,
-            config_store.get("config"),
+            config_payload,
             settings_data,
         )
         job_data = {
@@ -711,20 +762,30 @@ def register_callbacks(app: Dash) -> None:
         Output(ids.RUN_HISTORY_EMPTY, "hidden"),
         Output(ids.STORE_HISTORY, "data"),
         Output(ids.BUTTON_DOWNLOAD_SAMPLE_REPORT, "disabled"),
+        Output(ids.BUTTON_RERUN_LAST, "disabled"),
+        Output(ids.BUTTON_DOWNLOAD_SAMPLE_HTML, "disabled"),
         Input(ids.INTERVAL_HISTORY, "n_intervals"),
         Input(ids.STORE_RESULTS, "data"),
         prevent_initial_call=False,
     )
     def refresh_run_history(_tick, _store_results):
         runs = _list_recent_runs()
-        sample_bundle = Path("artifacts/sample_report/crispr_studio_report_bundle.zip")
-        sample_disabled = not sample_bundle.exists()
+        sample_bundle = _find_sample_report()
+        sample_bundle_disabled = sample_bundle is None
+        sample_html = _ensure_sample_report()
+        sample_html_disabled = sample_html is None
+        store_payload = {
+            "runs": runs,
+            "sample_report": str(sample_bundle) if sample_bundle else None,
+            "sample_html": str(sample_html) if sample_html else None,
+        }
         if not runs:
-            return [], False, {"runs": []}, sample_disabled
+            return [], False, store_payload, sample_bundle_disabled, True, sample_html_disabled
 
         history_items = [_build_history_item(run) for run in runs]
         history_group = dbc.ListGroup(history_items, flush=True, className="history-group")
-        return history_group, True, {"runs": runs}, sample_disabled
+        store_payload["latest"] = runs[0]
+        return history_group, True, store_payload, sample_bundle_disabled, False, sample_html_disabled
 
     @app.callback(
         Output(ids.STORE_RESULTS, "data", allow_duplicate=True),
@@ -911,10 +972,21 @@ def register_callbacks(app: Dash) -> None:
         prevent_initial_call=True,
     )
     def download_sample_report(_n_clicks):
-        bundle = Path("artifacts/sample_report/crispr_studio_report_bundle.zip")
-        if not bundle.exists():
+        sample_report = _find_sample_report()
+        if not sample_report:
             raise dash.exceptions.PreventUpdate
-        return dcc.send_file(str(bundle))
+        return dcc.send_file(str(sample_report))
+
+    @app.callback(
+        Output(ids.DOWNLOAD_SAMPLE_HTML, "data"),
+        Input(ids.BUTTON_DOWNLOAD_SAMPLE_HTML, "n_clicks"),
+        prevent_initial_call=True,
+    )
+    def download_sample_html(_n_clicks):
+        html_path = _ensure_sample_report()
+        if not html_path:
+            raise dash.exceptions.PreventUpdate
+        return dcc.send_file(str(html_path))
 
     @app.callback(
         Output(ids.DOWNLOAD_REPORT, "data"),

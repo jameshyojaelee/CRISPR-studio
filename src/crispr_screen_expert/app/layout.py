@@ -135,6 +135,14 @@ def _upload_tab() -> Component:
                                 color="primary",
                                 className="mt-4 run-analysis-btn",
                             ),
+                            dbc.Button(
+                                "Rerun Last Dataset",
+                                id=ids.BUTTON_RERUN_LAST,
+                                color="secondary",
+                                outline=True,
+                                className="mt-2 ms-2 rerun-btn",
+                                disabled=True,
+                            ),
                         ]
                     ),
                     className="glass-card h-100",
@@ -260,8 +268,19 @@ def _qc_tab() -> Component:
                         dbc.Card(
                             dbc.CardBody(
                                 [
-                                    html.H4("Replicate Correlation", className="section-title"),
+                                    html.H4(
+                                        [
+                                            "Replicate Correlation",
+                                            html.Span("?", id=ids.QC_CORRELATION_HELP, className="help-icon"),
+                                        ],
+                                        className="section-title d-flex align-items-center gap-2",
+                                    ),
                                     dcc.Graph(id=ids.GRAPH_QC_REPLICATE, className="graph-card"),
+                                    dbc.Tooltip(
+                                        "Correlations below ~0.8 often indicate swaps or low coverage; rerun after checking sample labels.",
+                                        target=ids.QC_CORRELATION_HELP,
+                                        placement="top",
+                                    ),
                                 ]
                             ),
                             className="glass-card h-100",
@@ -272,8 +291,19 @@ def _qc_tab() -> Component:
                         dbc.Card(
                             dbc.CardBody(
                                 [
-                                    html.H4("Guide Detection", className="section-title"),
+                                    html.H4(
+                                        [
+                                            "Guide Detection",
+                                            html.Span("?", id=ids.QC_DETECTION_HELP, className="help-icon"),
+                                        ],
+                                        className="section-title d-flex align-items-center gap-2",
+                                    ),
                                     dcc.Graph(id=ids.GRAPH_QC_DETECTION, className="graph-card"),
+                                    dbc.Tooltip(
+                                        "Low detection or many zero-count guides trigger warnings; consider repeat sequencing or excluding failed samples.",
+                                        target=ids.QC_DETECTION_HELP,
+                                        placement="top",
+                                    ),
                                 ]
                             ),
                             className="glass-card h-100",
@@ -341,8 +371,17 @@ def _reports_tab() -> Component:
                                     className="mt-3 ms-2",
                                     disabled=True,
                                 ),
+                                dbc.Button(
+                                    "Download Sample HTML",
+                                    id=ids.BUTTON_DOWNLOAD_SAMPLE_HTML,
+                                    color="secondary",
+                                    outline=True,
+                                    className="mt-3 ms-2",
+                                    disabled=True,
+                                ),
                                 dcc.Download(id=ids.DOWNLOAD_REPORT),
                                 dcc.Download(id=ids.DOWNLOAD_SAMPLE_REPORT),
+                                dcc.Download(id=ids.DOWNLOAD_SAMPLE_HTML),
                                 html.Small(
                                     "Run `make build-report` to refresh the latest analysis and regenerate the showcase bundle.",
                                     className="muted mt-3 d-block",
@@ -500,7 +539,24 @@ def _job_status_overlay() -> Component:
                         ],
                         className="job-status-settings-block",
                     ),
-                    html.Div(id=ids.JOB_STATUS_WARNINGS, className="job-status-warnings"),
+                    html.Div(
+                        [
+                            html.Div(
+                                [
+                                    html.Small("Warnings & QC badges", className="job-status-warnings-label"),
+                                    html.Span("?", id=ids.JOB_STATUS_WARNING_HELP, className="help-icon"),
+                                ],
+                                className="d-flex align-items-center gap-2",
+                            ),
+                            html.Div(id=ids.JOB_STATUS_WARNINGS, className="job-status-warnings"),
+                            dbc.Tooltip(
+                                "Warnings are deduplicated. CRITICAL items block downstream steps; rerun after resolving counts/library issues.",
+                                target=ids.JOB_STATUS_WARNING_HELP,
+                                placement="left",
+                            ),
+                        ],
+                        className="job-status-warnings-block",
+                    ),
                 ],
                 className="job-status-card glass-card",
             )

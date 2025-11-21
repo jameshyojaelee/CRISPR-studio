@@ -1,0 +1,5 @@
+# Guide-to-gene mapping; one row per guide_id.
+guide_id,gene_symbol,weight,notes
+GENE1_G01,GENE1,1.0,example guide
+GENE1_G02,GENE1,1.0,example guide
+NTC_G01,NTC,1.0,non-targeting control

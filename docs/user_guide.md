@@ -70,13 +70,13 @@ Set `CRISPR_STUDIO_USE_NATIVE_RRA=1` and/or `CRISPR_STUDIO_USE_NATIVE_ENRICHMENT
 
 2. Upload counts, library, and metadata files via the Upload tab. The configuration panel confirms metadata parsing (screen type, sample count, thresholds).
 
-3. Click **Run Analysis**. Jobs execute in the background; the UI polls automatically until completion.
+3. Click **Run Analysis**. Jobs execute in the background; the UI polls automatically until completion. Use **Rerun Last Dataset** to reuse cached uploads/settings without re-uploading files.
 
 4. Explore results:
    - **Results** tab: summary cards, volcano plot, interactive gene table (select a row to view annotations in the modal).
-   - **QC** tab: replicate correlation and detection heatmap with thresholds.
+   - **QC** tab: replicate correlation and detection heatmap with thresholds. Hover the info badges for remediation hints; CRITICAL/WARNING badges are de-duplicated before display.
    - **Pathways** tab: bubble chart summarising Enrichr/GSEA output.
-  - **Reports** tab: download an HTML summary; PDF export requires the reports extra (`pip install .[reports]`).
+   - **Reports** tab: download an HTML summary or the bundled sample preview; PDF export requires the reports extra (`pip install .[reports]`).
 
 ## Interpreting Metrics
 

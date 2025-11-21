@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CRISPR-studio Sample Report</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #0c1021; color: #e5e9f0; padding: 2rem; }
+    h1 { color: #7f5af0; }
+    section { margin-bottom: 1.5rem; }
+    .cards { display: flex; gap: 1rem; }
+    .card { background: #11162a; padding: 1rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    code { background: #1b2035; padding: 0.2rem 0.4rem; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>CRISPR-studio Sample Report</h1>
+  <p>This lightweight HTML preview ships with the repository for offline demos. Run <code>make build-report</code> to regenerate a full report from the latest analysis.</p>
+
+  <section class="cards">
+    <div class="card">
+      <h3>Experiment</h3>
+      <p>Demo dropout screen (sample_data)</p>
+    </div>
+    <div class="card">
+      <h3>Runtime</h3>
+      <p>&lt; 2 minutes (Python only, annotations skipped)</p>
+    </div>
+    <div class="card">
+      <h3>Significant Genes</h3>
+      <p>11 (FDR &lt; 0.1)</p>
+    </div>
+  </section>
+
+  <section>
+    <h3>What to expect</h3>
+    <ul>
+      <li>QC metrics with severity badges and remediation hints.</li>
+      <li>Volcano plot, gene leaderboard, and pathway bubbles.</li>
+      <li>Deduplicated warning summaries for the Dash UI.</li>
+    </ul>
+  </section>
+
+  <section>
+    <p>For a richer artifact bundle (HTML + PDF), generate a fresh run and download it from the Dash Reporting Studio tab.</p>
+  </section>
+</body>
+</html>

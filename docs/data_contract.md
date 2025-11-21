@@ -85,6 +85,11 @@ Top-level keys:
 - Replicate labels may repeat across conditions (e.g., `A`, `B`) but pairings must make sense (control A vs. treatment A).
 - Fields outside the schema are ignored but preserved for reporting.
 
+### Templates
+- `templates/data_contract/counts_template.csv` — sample counts header plus example values.
+- `templates/data_contract/library_template.csv` — guide-to-gene mapping with optional weight column.
+- `templates/data_contract/metadata_template.json` — Pydantic-compatible metadata stub with control/treatment samples.
+
 ## 4. Derived Artifacts (Pipeline Output)
 
 While not inputs, downstream components produce standardized outputs:
@@ -104,3 +109,15 @@ Sample files in `sample_data/` conform to this contract:
 - `demo_metadata.json`
 
 Use the generator script (`scripts/generate_demo_dataset.py`) to recreate or customize synthetic data while maintaining compatibility.
+
+## 6. Validation Script & Fix Checklist
+
+Run `python scripts/validate_dataset.py sample_data/demo_counts.csv sample_data/demo_library.csv sample_data/demo_metadata.json` to lint a dataset without hitting external services (`--skip-annotations`).
+
+Common fixes suggested by the script:
+- Remove duplicate `guide_id` rows and duplicate sample columns.
+- Ensure every metadata sample appears in the counts header.
+- Keep counts non-negative integers (replace blanks with 0).
+- Align library gene symbols to uppercase HGNC-like names and include all guides present in the counts file.
+
+Add `--export-samples normalized_samples.json` to emit a normalised sample manifest for downstream automation.

@@ -1,0 +1,5 @@
+# Replace these rows with your sgRNA counts; integer values only.
+guide_id,CTRL_1,CTRL_2,TREAT_1,TREAT_2
+GENE1_G01,12000,11800,4200,4100
+GENE1_G02,11500,11200,4300,4120
+NTC_G01,9800,9700,9600,9500

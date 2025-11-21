@@ -1,0 +1,42 @@
+{
+  "_comment": "Update sample_id/file_column to match counts headers. Keep one control and one treatment at minimum.",
+  "experiment_name": "demo_screen",
+  "screen_type": "dropout",
+  "samples": [
+    {
+      "sample_id": "CTRL_1",
+      "condition": "control",
+      "replicate": "1",
+      "role": "control",
+      "file_column": "CTRL_1"
+    },
+    {
+      "sample_id": "CTRL_2",
+      "condition": "control",
+      "replicate": "2",
+      "role": "control",
+      "file_column": "CTRL_2"
+    },
+    {
+      "sample_id": "TREAT_1",
+      "condition": "treatment",
+      "replicate": "1",
+      "role": "treatment",
+      "file_column": "TREAT_1"
+    },
+    {
+      "sample_id": "TREAT_2",
+      "condition": "treatment",
+      "replicate": "2",
+      "role": "treatment",
+      "file_column": "TREAT_2"
+    }
+  ],
+  "analysis": {
+    "scoring_method": "rra",
+    "fdr_threshold": 0.1,
+    "enable_pathway": true,
+    "enable_llm": false,
+    "min_count_threshold": 10
+  }
+}
