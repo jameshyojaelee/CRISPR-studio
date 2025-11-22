@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from importlib import reload
+import shutil
 from typing import Dict
 
 import pandas as pd
@@ -18,6 +19,11 @@ from crispr_screen_expert.models import (
     SampleConfig,
     ScoringMethod,
     ScreenType,
+)
+
+pytestmark = pytest.mark.skipif(
+    shutil.which("chromedriver") is None,
+    reason="chromedriver not available on PATH; skipping dash tests",
 )
 from crispr_screen_expert.pipeline import PipelineSettings
 

@@ -35,7 +35,7 @@ api-example:
 	@echo "Launching local API server and exercising examples/api_client.py"
 	@UVICORN_CMD="$(PYTHON) -m uvicorn crispr_screen_expert.api:create_app --factory --host 127.0.0.1 --port 8000"; \
 	($$UVICORN_CMD > artifacts/api_client_server.log 2>&1 &) && echo $$! > artifacts/api_server.pid; \
-	sleep 3; \
+	sleep 6; \
 	$(PYTHON) examples/api_client.py --host http://127.0.0.1:8000; \
 	kill $$(cat artifacts/api_server.pid) 2>/dev/null || true; \
 	rm -f artifacts/api_server.pid

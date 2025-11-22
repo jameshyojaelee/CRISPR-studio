@@ -159,7 +159,8 @@ def fetch_gene_annotations(
                         exc,
                     )
                     batch_failures.append(message)
-                    _maybe_sleep_between_batches(batch_index, total_batches)
+                    if batch_index < total_batches:
+                        _maybe_sleep_between_batches(batch_index, total_batches)
                     continue
                 except requests.HTTPError as exc:
                     status_code = exc.response.status_code if exc.response is not None else None
@@ -171,7 +172,8 @@ def fetch_gene_annotations(
                         len(chunk),
                     )
                     batch_failures.append(message)
-                    _maybe_sleep_between_batches(batch_index, total_batches)
+                    if batch_index < total_batches:
+                        _maybe_sleep_between_batches(batch_index, total_batches)
                     continue
                 except requests.RequestException as exc:
                     message = _format_batch_warning(batch_index, len(chunk), f"request error: {exc}")
@@ -182,7 +184,8 @@ def fetch_gene_annotations(
                         exc,
                     )
                     batch_failures.append(message)
-                    _maybe_sleep_between_batches(batch_index, total_batches)
+                    if batch_index < total_batches:
+                        _maybe_sleep_between_batches(batch_index, total_batches)
                     continue
 
                 chunk_updates = False
@@ -197,7 +200,8 @@ def fetch_gene_annotations(
                 if chunk_updates:
                     _save_cache(cache_path, cache)
 
-                _maybe_sleep_between_batches(batch_index, total_batches)
+                if batch_index < total_batches:
+                    _maybe_sleep_between_batches(batch_index, total_batches)
 
         finally:
             if close_session:

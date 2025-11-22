@@ -47,8 +47,26 @@ def load_counts(path: Path) -> pd.DataFrame:
         raise DataContractError(f"Counts file not found: {path}")
 
     delimiter = _detect_delimiter(path)
+    # Check header early to detect duplicate columns before pandas mangles them.
+    with path.open("r", encoding="utf-8") as handle:
+        try:
+            header_row = next(csv.reader([handle.readline()], delimiter=delimiter))
+        except StopIteration:
+            header_row = []
+    if not header_row:
+        raise DataContractError("Counts file is empty or missing a header row.")
+    duplicate_columns = [col for col in header_row if col and header_row.count(col) > 1 and col != "guide_id"]
+    if duplicate_columns:
+        dup_list = ", ".join(sorted(set(duplicate_columns)))
+        raise DataContractError(f"Counts file contains duplicate sample columns: {dup_list}")
+
     try:
-        df = pd.read_csv(path, sep=delimiter, dtype={"guide_id": str}, comment="#")
+        df = pd.read_csv(
+            path,
+            sep=delimiter,
+            dtype={"guide_id": str},
+            comment="#",
+        )
     except ParserError as exc:
         details = exc.args[0] if exc.args else str(exc)
         raise DataContractError(f"Counts file appears malformed ({details}).") from exc
@@ -88,6 +106,13 @@ def load_counts(path: Path) -> pd.DataFrame:
                 f"Counts column '{column}' contains non-integer values at guides: {sample}"
             )
 
+        if coerced.isna().any():
+            missing_indices = coerced[coerced.isna()].index.tolist()
+            sample = _format_offending_values(list(zip(missing_indices, column_series.loc[missing_indices])))
+            raise DataContractError(
+                f"Counts file appears malformed: column '{column}' contains missing values; replace blanks with 0. Offending guides: {sample}"
+            )
+
         counts_df[column] = coerced.astype("int64")
 
     if (counts_df < 0).any().any():
@@ -101,8 +126,24 @@ def load_library(path: Path) -> pd.DataFrame:
     if not path.exists():
         raise DataContractError(f"Library file not found: {path}")
 
+    with path.open("r", encoding="utf-8") as handle:
+        try:
+            header_row = next(csv.reader([handle.readline()], delimiter=","))
+        except StopIteration:
+            header_row = []
+    if not header_row:
+        raise DataContractError("Library file is empty or missing a header row.")
+    duplicate_columns = [col for col in header_row if col and header_row.count(col) > 1 and col != "guide_id"]
+    if duplicate_columns:
+        dup_list = ", ".join(sorted(set(duplicate_columns)))
+        raise DataContractError(f"Library file contains duplicate columns: {dup_list}")
+
     try:
-        df = pd.read_csv(path, dtype={"guide_id": str, "gene_symbol": str}, comment="#")
+        df = pd.read_csv(
+            path,
+            dtype={"guide_id": str, "gene_symbol": str},
+            comment="#",
+        )
     except Exception as exc:
         raise DataContractError(f"Failed to parse library file {path}: {exc}") from exc
 

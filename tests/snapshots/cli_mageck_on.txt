@@ -9,6 +9,9 @@ Analysis completed.
   "notes": []
 }
 Artifacts:
+  input_counts: <RUN_DIR>/input_counts.csv
+  input_library: <RUN_DIR>/input_library.csv
+  input_metadata: <RUN_DIR>/input_metadata.json
   raw_counts: <RUN_DIR>/raw_counts.csv
   mageck_input: <RUN_DIR>/mageck_input.tsv
   gene_results: <RUN_DIR>/gene_results.csv
