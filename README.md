@@ -1,6 +1,6 @@
 # CRISPR-studio
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
+![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
 
 I built CRISPR-studio so I could hand a single folder to collaborators and have them go from raw pooled-screen counts to a navigable report without babysitting R scripts. It's a one-person project, tuned for biological researchers who just want the analysis to run.
 
