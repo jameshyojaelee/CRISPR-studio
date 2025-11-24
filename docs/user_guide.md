@@ -1,109 +1,80 @@
-# CRISPR-studio User Guide
+# CRISPR-studio Field Guide
 
-## Installation
+Thanks for checking out my personal CRISPR screen toolkit. This guide is written for researchers who just need clear steps—no product fluff, no multi-team handoffs.
 
-1. Ensure Python 3.11+ is available (`module load Python/3.11.5-GCCcore-13.2.0` on the HPC environment; 3.12 also supported).
-2. Clone the repository and create a virtual environment:
+## Before you start
+- Python 3.11+ only. I build/test with 3.11 and 3.12.
+- Create a fresh virtual environment. I use:
+  ```bash
+  python3.11 -m venv .venv
+  source .venv/bin/activate
+  pip install --upgrade pip
+  pip install .
+  ```
+- Extras:
+  - `pip install .[reports]` for kaleido + WeasyPrint so PDF export works.
+  - `pip install .[benchmark]` for psutil-backed runtime checks.
+  - `pip install .[native]` if you feel like compiling the Rust/C++ accelerators.
+- Optional `.env` entries: `OPENAI_API_KEY`, `LOG_LEVEL`, and overrides such as `CRISPR_STUDIO__ARTIFACTS_DIR`.
+
+## Command-line flow
+1. **Validate your files** (do this before any heavy analysis):
    ```bash
-   python3.11 -m venv .venv
-   source .venv/bin/activate
-   pip install --upgrade pip
-   make install
+   crispr-studio validate-data counts.csv library.csv metadata.json
+   python scripts/validate_dataset.py counts.csv library.csv metadata.json --skip-annotations --export-samples artifacts/normalized_samples.json
    ```
-3. (Optional) install native build prerequisites if you plan to use the accelerated modules:
-   - **Linux**: `sudo apt-get install -y build-essential cmake ninja-build rustc cargo`
-   - **macOS**: `brew install cmake ninja rustup` then run `rustup-init`
-   - **Windows**: Install Visual Studio Build Tools (MSVC), CMake, Ninja, and Rust via `rustup`
-4. Optionally, populate a `.env` file with settings:
+   The script version prints friendlier suggestions (missing guide IDs, duplicate columns, non-numeric counts).
+2. **Run the pipeline** on the bundled demo data or your own:
    ```bash
-   echo "OPENAI_API_KEY=your-key" >> .env
-   echo "LOG_LEVEL=INFO" >> .env
+   crispr-studio run-pipeline sample_data/demo_counts.csv sample_data/demo_library.csv sample_data/demo_metadata.json --enrichr-libraries Reactome_2022
    ```
-
-## Command-Line Interface
-
-Run `crispr-studio --help` to view commands. Common workflows:
-
-- Validate inputs before analysis:
-  ```bash
-  crispr-studio validate-data sample_data/demo_counts.csv sample_data/demo_library.csv sample_data/demo_metadata.json
-  ```
-- Execute the analysis pipeline (results stored in `artifacts/`):
-  ```bash
-  crispr-studio run-pipeline sample_data/demo_counts.csv sample_data/demo_library.csv sample_data/demo_metadata.json --enrichr-libraries Reactome_2022
-  ```
-- Offline validation with actionable hints and a normalized sample manifest:
-  ```bash
-  python scripts/validate_dataset.py sample_data/demo_counts.csv sample_data/demo_library.csv sample_data/demo_metadata.json --export-samples artifacts/normalized_samples.json
-  ```
-- Run with native accelerators (requires the native modules to be built):
-  ```bash
-  crispr-studio run-pipeline sample_data/demo_counts.csv sample_data/demo_library.csv sample_data/demo_metadata.json --use-native-rra --use-native-enrichment --enrichr-libraries native_demo
-  ```
-- List prior analyses and available artifacts:
-  ```bash
-  crispr-studio list-artifacts
-  ```
-
-## Native Acceleration
-
-Native modules speed up robust rank aggregation and enrichment. Build them once per environment:
-
-```bash
-pip install .[native]
-maturin develop --manifest-path rust/Cargo.toml --release
-python -m scikit_build_core.build --wheel -S cpp -b cpp/build/user -o cpp/dist
-pip install cpp/dist/*.whl
-```
-
-Set `CRISPR_STUDIO_USE_NATIVE_RRA=1` and/or `CRISPR_STUDIO_USE_NATIVE_ENRICHMENT=1` to force-enable native paths globally. Use `CRISPR_STUDIO_FORCE_PYTHON=1` to temporarily disable all native extensions. When a backend is missing or raises an error the pipeline logs a warning and automatically falls back to the Python implementation.
-
-| Dataset profile | Recommended backend |
-| --- | --- |
-| Exploratory (<5k guides) | Pure Python |
-| Production (~20k guides) | Native RRA (optionally native enrichment) |
-| Genome-scale (≥100k guides) | Native RRA + native enrichment |
-
-## Dash Application
-
-1. Launch the web UI locally:
+   Useful toggles:
+   - `--skip-annotations` for air-gapped demos.
+   - `--use-native-rra`, `--use-native-enrichment` once the native wheels are installed.
+   - `--use-mageck false` to stay entirely within the RRA path.
+3. **Check artifacts**: `crispr-studio list-artifacts` shows the folders created under `artifacts/<timestamp>/`.
+4. **Benchmark or profile when curious**:
    ```bash
-   python app.py
+   python scripts/benchmark_pipeline.py --dataset-size medium --repeat 2 --jsonl --plot
    ```
-   Visit `http://127.0.0.1:8050` in a browser.
+   Outputs land under `artifacts/benchmarks/<timestamp>/` as JSONL, markdown summaries, and a simple HTML runtime plot.
 
-2. Upload counts, library, and metadata files via the Upload tab. The configuration panel confirms metadata parsing (screen type, sample count, thresholds).
+## Dash walkthrough
+1. Run `python app.py` and open `http://127.0.0.1:8050`.
+2. Upload counts/library/metadata once. They stay cached so **Rerun Last Dataset** can replay without re-uploading.
+3. Hover the QC badges for hints on what each severity level means; CRITICAL stops the CLI but still surfaces details in the UI.
+4. The **Results** tab shows the volcano plot and gene table. Click any row to see annotations, run-specific warnings, and narratives (LLM text appears only if you add an OpenAI key).
+5. The **QC** tab contains correlation/detection charts with tooltips that explain remediation ideas.
+6. The **Reports** tab always includes the bundled sample HTML report plus fresh exports if the latest run succeeded. Use this when demoing—the page works even when the live pipeline hiccups.
+7. Logs live at `logs/crispr_studio.log`; set `LOG_LEVEL=DEBUG` if something feels off.
 
-3. Click **Run Analysis**. Jobs execute in the background; the UI polls automatically until completion. Use **Rerun Last Dataset** to reuse cached uploads/settings without re-uploading files.
+## Performance and native notes
+| Dataset profile | Approx runtime (Python path) | Tips |
+| --- | --- | --- |
+| 1k guides, 4 reps | 10–15 s | Leave everything pure Python. |
+| 20k guides, 6 reps | 75–110 s | Consider native RRA (`pip install .[native]`). |
+| 100k guides, 8 reps | 5–7 min | Use both native toggles; prewarm annotation cache. |
 
-4. Explore results:
-   - **Results** tab: summary cards, volcano plot, interactive gene table (select a row to view annotations in the modal).
-   - **QC** tab: replicate correlation and detection heatmap with thresholds. Hover the info badges for remediation hints; CRITICAL/WARNING badges are de-duplicated before display.
-   - **Pathways** tab: bubble chart summarising Enrichr/GSEA output.
-   - **Reports** tab: download an HTML summary or the bundled sample preview; PDF export requires the reports extra (`pip install .[reports]`). A bundled sample HTML report is always available under `artifacts/sample_report/`.
+- Native builds: `maturin develop --manifest-path rust/Cargo.toml` and `python -m scikit_build_core.build -S cpp -b cpp/build && pip install cpp/build/*.whl`.
+- Force modes: set `CRISPR_STUDIO_USE_NATIVE_RRA=1` / `CRISPR_STUDIO_USE_NATIVE_ENRICHMENT=1` or `CRISPR_STUDIO_FORCE_PYTHON=1` if the builds act up.
+- Annotation cache: a quick run without `--skip-annotations` hydrates `.cache/gene_cache.json`. For flaky networks set `MYGENE_BATCH_SIZE=250`.
 
-## Interpreting Metrics
+## Troubleshooting quick hits
+- **Annotations warning** like `batch 2 (HTTP 503, 200 genes skipped)` → rerun later or flip on `--skip-annotations`. Failed batches are retried; the cache prevents re-downloading everything.
+- **Native module missing** → reinstall the `[native]` extra and rebuild, or move on with the Python fallback. The UI and CLI both show a single warning, not a wall of duplicates.
+- **QC hard stop** → the CLI exits when any metric hits CRITICAL. Open the matching `qc_metrics.json` file to see why (low replicate correlation, detection drop, etc.).
+- **MAGeCK unavailable** → either install MAGeCK manually or stick with RRA by passing `--use-mageck false`.
+- **Want to demo without surprises** → pre-run `crispr-studio run-pipeline ... --skip-annotations` so artifacts exist before you screen-share. Keep screenshots handy under `artifacts/sample_report/`.
 
-- **QC Badges**: Metrics surface `OK`, `WARNING`, or `CRITICAL`. Revisit library prep or sequencing if replicate correlations fall below 0.7 or detection ratios drop under 75%.
-- **Significance Thresholds**: Default FDR ≤ 0.10; adjust via metadata (`analysis.fdr_threshold`) or CLI flags when invoking the pipeline.
-- **Pathway Analysis**: Enrichr libraries configured with `--enrichr-libraries`. Interpret bubble radius as gene hits within the pathway; -log10(FDR) drives the x-axis.
-- **Narratives**: Deterministic summaries always available. Enabling the OpenAI key appends AI-generated text labelled with caveats.
+## API and automation
+- Launch: `python app_api.py` or `crispr-studio serve-api --host 0.0.0.0 --port 8000`.
+- Client helper: `python examples/api_client.py --host http://127.0.0.1:8000` (relies on `sample_data/`).
+- Tests: `pytest -k api_client_example` ensures the payload builder keeps working; the rest of the suite lives under `tests/` and runs quickly on the demo data.
 
-## Troubleshooting
+## Notebook pathway
+If you prefer a guided notebook, open the Colab badge in the README or run the notebook locally from the repo root so the relative paths work. The notebook loads `sample_data/`, turns off MAGeCK, skips annotations, and draws quick Plotly figures; edit the `DATA_DIR` cell to point at your own files.
 
-- **Data Contract Violations**: `crispr-studio validate-data` highlights missing columns or mismatched guides. Ensure `guide_id` column exists and metadata sample IDs align with counts columns.
-- **MAGeCK Missing**: Install from Bitbucket (`pip install /tmp/mageck-bitbucket`). The pipeline automatically falls back to RRA when MAGeCK fails or is unavailable.
-- **Native build failures**: Confirm platform prerequisites (compilers, CMake, Ninja, Rust) are installed and run the build commands from a clean virtual environment. Review `cpp/build/*/CMakeOutput.log` or `rust/target` logs for details.
-- **Native RRA/enrichment unavailable**: If the native module fails to import, set `CRISPR_STUDIO_FORCE_PYTHON=1` to continue with the Python fallback and rebuild the extension later.
-- **WeasyPrint Not Installed**: HTML export remains available; install system dependencies and `pip install .[reports]` for PDF support.
-- **Large Datasets**: Background jobs are queued (ThreadPoolExecutor). Monitor `logs/crispr_studio.log` for timings and warnings.
-
-## Configure Analytics Opt-In
-
-Analytics logging is disabled by default. Set `CRISPR_STUDIO__ENABLE_ANALYTICS=true` in `.env` to capture anonymised events (analysis started/completed, QC warnings) written under `analytics/`.
-
-## FAQ
-
-- **MAGeCK works but native RRA fails to build** – rebuild the Rust extension (`maturin develop --manifest-path rust/Cargo.toml --release`) and ensure the toolchain requirements are installed. Until then, rely on the Python fallback (`CRISPR_STUDIO_FORCE_PYTHON=1`).
-- **Can I disable native enrichment only?** – yes, either unset `CRISPR_STUDIO_USE_NATIVE_ENRICHMENT` or pass `--use-native-enrichment/--no-use-native-enrichment` through the CLI when running pipelines.
-- **Where are native gene sets stored?** – the demo ships with `resources/enrichment/native_demo.json`. Provide your own JSON mapping of `{ "library": { "set_name": [genes...] } }` to extend it.
+## Data templates and validation
+- Templates for counts/library/metadata live in `templates/data_contract/` and align with the rules in `docs/data_contract.md`.
+- `scripts/validate_dataset.py` supports `--skip-annotations` and `--export-samples` to emit a normalized manifest.
+- The CLI and Dash use the same validation logic, so once a dataset passes here it will load everywhere.

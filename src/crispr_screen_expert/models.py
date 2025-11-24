@@ -1,7 +1,7 @@
 """Pydantic domain models for CRISPR-studio.
 
 These models capture the primary configuration and analysis artefacts described in
-``overview.md`` and enforce the data contract from ``docs/data_contract.md``.
+``docs/user_guide.md`` and enforce the data contract from ``docs/data_contract.md``.
 """
 
 from __future__ import annotations

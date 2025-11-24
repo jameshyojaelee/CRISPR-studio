@@ -1,6 +1,6 @@
 # Data Contract — CRISPR-studio Demo & Pipeline Inputs
 
-This document defines the required structure for datasets consumed by CRISPR-studio. All files use UTF-8 encoding and ASCII characters.
+Here’s the structure I expect for anything you feed into the pipeline. It’s the same schema the CLI, Dash app, and validation script use, so once a dataset passes this list you’re good everywhere. Keep files UTF-8 encoded with plain ASCII characters to avoid surprises.
 
 ## 1. sgRNA Count Matrix (`.csv` or `.tsv`)
 

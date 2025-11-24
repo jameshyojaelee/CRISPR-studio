@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1 — Personal doc cleanup
+
+- Trimmed documentation to the pieces I actively maintain (README, `docs/user_guide.md`, `docs/data_contract.md`, `docs/notebooks.md`) and rewrote everything in a researcher-friendly voice.
+- Removed the old go-to-market, roadmap, native-architecture, security, and runbook markdown files so the repo reflects its single-maintainer reality.
+- Updated references across the codebase to account for the new doc layout.
+
 ## 0.3.0 — Packaging polish & onboarding
 
 - Enforced Python 3.11+ across docs, Makefile, CI (3.11/3.12 matrix), and Docker; refreshed PyPI metadata (keywords, URLs, badges) and added a slim CPU-only image target with optional native build arg.
@@ -7,7 +13,7 @@
 - Shipped FastAPI client example (`examples/api_client.py`), `make api-example`, and cURL snippets in the README/developer guide; added lightweight unit test.
 - Hardened onboarding with data contract templates, `scripts/validate_dataset.py` (fix checklist + manifest export), and happy-path/failure tests.
 - Polished Dash UI: QC/warning tooltips, rerun-last-dataset button reusing cached uploads, and a bundled sample report link.
-- Extended benchmarking (`--jsonl`, `--plot`) with optional CI artifact upload and documented expectations in `docs/performance.md`.
+- Extended benchmarking (`--jsonl`, `--plot`) with optional CI artifact upload and documented expectations in `docs/user_guide.md`.
 - Added community readiness: Code of Conduct, contributing guide, issue/PR templates, lint-fix target, and README community/help-wanted links.
 
 ## 0.2.0 — Polished Reporting Suite
