@@ -1,6 +1,6 @@
 # CRISPR-studio
 
-[![PyPI](https://img.shields.io/pypi/v/crispr_screen_expert)](https://pypi.org/project/crispr_screen_expert/) ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue) ![License: MIT](https://img.shields.io/badge/license-MIT-green) ![Extras](https://img.shields.io/badge/extras-native%20%7C%20reports%20%7C%20benchmark-6B7280)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
 
 I built CRISPR-studio so I could hand a single folder to collaborators and have them go from raw pooled-screen counts to a navigable report without babysitting R scripts. It's a one-person project, tuned for biological researchers who just want the analysis to run.
 
